@@ -1,0 +1,9 @@
+{
+	"name": "dte",
+	"main": "dte.html",
+	"window": {
+		"width": 1024,
+		"height": 768
+	},
+	"license": "MIT"
+}

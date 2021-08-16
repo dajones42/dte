@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<!--
+Copyright © 2019 Doug Jones
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+<html>
+<head>
+<title>Dynamic Track Editor</title>
+<script src="dte.js"></script>
+<script src="menu.js"></script>
+<script src="msts.js"></script>
+<script src="geometry.js"></script>
+<script src="map.js"></script>
+<script src="profile.js"></script>
+<script src="render3d.js"></script>
+<script src="ighproj.js"></script>
+<script src="csg.js"></script>
+<link rel="stylesheet" href="dte.css" type="text/css">
+</head>
+<body>
+<canvas id="canvas" height="650px" width="990px">
+</canvas>
+<hr>
+<canvas id="profilecanvas" height="300px" width="990px">
+</canvas>
+<hr>
+<h4>Options</h4>
+<table>
+<tr>
+<td align=left>Switch Type:</td>
+<td align=left><select id="switchtype">
+<option value=38050 selected>A1tPnt3dBLftMnl
+<option value=38051>A1tPnt3dBRgtMnl
+<option value=19768>A1tYPnt3dBMnl
+<option value=38052>A1tPnt6dBLftMnl
+<option value=38053>A1tPnt6dBRgtMnl
+<option value=19762>A1tYPnt6dBMnl
+<option value=216>A1tPnt10dLftMnl
+<option value=218>A1tPnt10dRgtMnl
+<option value=217>A1tYPnt10dMnl
+<option value=32248>SR_1tSwt_w_m06dL
+<option value=32249>SR_1tSwt_w_m06dR
+<option value=32310>SR_1tSwt_w_m03dL
+<option value=32311>SR_1tSwt_w_m03dR
+<option value=20916>SR_1tSwt_w_m03dL_Ext
+<option value=20917>SR_1tSwt_w_m03dR_Ext
+<option value=20918>SR_1tSwt_w_im03dL_Ext
+<option value=20919>SR_1tSwt_w_im03dR_Ext
+</select></td>
+</tr><tr>
+<td align=left>Model:</td>
+<td align=left><input id="shapefile" type="file" accept=".s"/></td>
+<td align=left>Vert. Offset:</td>
+<td align=left><input id="voffset" type="text" value="0"/></td>
+</tr><tr>
+<td align=left>Tile Image Size:</td>
+<td align=left><select id="tileimagesize">
+<option value=256>256
+<option value=512 selected>512
+<option value=1024>1024
+<option value=2048>2048
+</select></td>
+</tr><tr>
+<td align=left>Track Type:</td>
+<td align=left><select id="tracktype">
+<option value=branch selected>Branch
+<option value=yard>Yard
+<option value=main>Main
+<option value=water>Water
+<option value=road>Road
+<option value=dirtroad>Dirt Road
+<option value=dirtroad1>1 Lane Dirt Road
+<option value=contour>Contour
+</select></td>
+</tr><tr>
+<td align=left>Track Name:</td>
+<td align=left><input id="trackname" type="text"/></td>
+</tr><tr>
+<td align=left>Track Spacing:</td>
+<td align=left><input id="trackspacing" type="text" value="4.985"/></td>
+</tr><tr>
+</tr><tr>
+<td align=left>Track Length:</td>
+<td align=left><input id="tracklength" type="text" value="10"/></td>
+</tr><tr>
+</tr><tr>
+<td align=left>Bridge Type:</td>
+<td align=left><select id="bridgetype">
+<option value=bridge selected>Bridge
+<option value=ptbd>Pile Trestle, Ballast Deck
+<option value=pttd>Pile Trestle, Timber Deck
+<option value=ftbd>Framed Trestle, Ballast Deck
+<option value=fttd>Framed Trestle, Timber Deck
+<option value=covb>Covered Bridge
+<option value=crbd>Concrete Road Deck
+<option value=ibeam>I-Beam
+<option value=turntable>Turn Table
+</select></td>
+</tr><tr>
+<td align=left>Tree Type:</td>
+<td align=left><select id="treetype">
+<option value="oak">Oak
+<option value="pine">Pine
+<option value="birch">Birch
+<option value="sugarmaple">Sugar Maple
+<option value="norwaymaple">Norway Maple
+<option value="fieldmaple" selected>Field Maple
+</select></td>
+<td align=left>Tree Density:</td>
+<td align=left><input id="density" type="text" value=".5"/></td>
+</tr><tr>
+<td align=left>Tree Type 2:</td>
+<td align=left><select id="treetype2">
+<option value="oak">Oak
+<option value="pine" selected>Pine
+<option value="birch">Birch
+<option value="sugarmaple">Sugar Maple
+<option value="norwaymaple">Norway Maple
+<option value="fieldmaple">Field Maple
+</select></td>
+<td align=left>Tree Density 2:</td>
+<td align=left><input id="density2" type="text" value=".4"/></td>
+</tr>
+</table>
+<hr>
+<canvas id="canvas3d" height="600px" width="990px">
+</canvas>
+<hr>
+<p>
+<div id="results"></div>
+</p>
+<hr>
+<h4>Controls</h4>
+<bl>
+<li>
+Shift+Click: Move clicked location to center of display.
+<li>
+Ctrl+Click: Add control point, connect tracks and add switches.
+<li>
+Click: Select a control point.
+<li>
+Drag: move control point or change track direction.
+<li>
+Up Arrow: zoom in.
+<li>
+Down Arrow: zoom out.
+<li>
+Left Arrow: rotate 3D camera.
+<li>
+Right Arrow: rotate 3D camera.
+<li>
+Enter: update 3D models.
+<le>
+<h4>File Menu</h4>
+<bl>
+<li>
+Open: open a previously saved json file of track data.
+<li>
+Save: save track data to a json file.
+<li>
+Open TDB: open an MSTS route TDB file.
+<li>
+Import CSV: load a track of latitude and longitude values from a csv file.
+<li>
+Save To Route: save data to MSTS route TDB, route tsection.dat and .w files.
+Also saves any modified elevation data.
+Only works with unicode .w files.
+<li>
+Add Tiles: adds tiles to route based on existing track data.
+Rebuilds quad tree to match tiles.
+<li>
+Save Tile Image: saves the background image for the tile currently at the
+center of the map as a terrain texture (saves .png file that needs to be
+converted to .ace).
+<le>
+<h4>Edit Menu</h4>
+<bl>
+<li>
+Delete: removes the currently selected control point and any corresponding
+switch.
+<li>
+Straight: forces the track between the selected control point and the next
+control point to be straight.
+<li>
+Curve: allows the track between the selected control point and the next
+control point to curve.
+<li>
+Align: moves the selected control point to make sure consecutive straights
+and switches are lined up.
+Will also rotate the selected switch if necessary.
+<li>
+Equalize Radius: adjust track direction at the selected control point to
+equalize the radius of the adjacent curves.
+<li>
+Offset: moves the selected control point so that it is at least 4.985 meters
+from other tracks.
+<li>
+Calc.Elev.: marks the selected control point so that its elevation will be
+calculated so that the grade is the same on either side.
+<li>
+Group: adds control points connected to the selected control point by a
+straight or switch to a group so that they can be moved and/or rotated
+together.
+<li>
+Change Switch Type: changes the selected switch to match the shape
+selected on the Options panel.
+<li>
+Cut: lowers the ground elevation adjacent to track between the selected
+control point and the next control point, if necessary.
+<li>
+Fill&Cut: raises and then lowers the ground elevation adjacent to track
+between the selected control point and the next control point, if necessary.
+<le>
+<h4>Map Menu</h4>
+<bl>
+<li>
+USGS Topo: use USGS topography maps for map background.
+<li>
+USGS Imagery: use USGS imagery for map background.
+<li>
+Open Street Maps: use Open Street Map images for map background.
+<le>
+<input id="fileopen" type="file" style="display:none" accept=".json"/>
+<input id="fileopentdb" type="file" style="display:none" accept=".tdb"/>
+<input id="filesave" type="file" nwsaveas style="display:none" accept=".json"/>
+<input id="fileimport" type="file" style="display:none" accept=".csv"/>
+<input id="fileexport" type="file" nwsaveas style="display:none" accept=".csv"/>
+<img id="trackimage" src="track512.png" style="display:none"></img>
+<img id="microtex" src="microtex.png" style="display:none"></img>
+</body>
+</html>

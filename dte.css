@@ -1,0 +1,22 @@
+table {
+	margin: 0;
+	padding: 0;
+	border-width: 0;
+	border-spacing: 0;
+}
+tr {
+	background-color: #fff;
+	color: #000;
+}
+th {
+	background: #696;
+	color: #000;
+	margin: 0;
+	padding: 4px;
+	border: 1px solid #333;
+}
+td {
+	margin: 0;
+	padding: 1px;
+	text-align: center;
+}

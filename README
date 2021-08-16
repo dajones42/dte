@@ -1,0 +1,6 @@
+Dynamic Track Editor
+
+A different kind of Microsoft Train Simulator route editor.
+
+This program is designed to be run with NW.js which is available at
+https://nwjs.io.  Testing was done using NW.js v0.33.4.

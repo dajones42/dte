@@ -220,6 +220,25 @@ let setupMenu= function() {
 			mapType= "osge"; backgroundTiles=[]; renderCanvas();
 		}
 	}));
+	mapMenu.append(new nw.MenuItem({
+		label: 'OSG Earth/USGS Hydro',
+		click: function() {
+			mapType= "osgehydro";
+			backgroundTiles=[]; renderCanvas();
+		}
+	}));
+	mapMenu.append(new nw.MenuItem({
+		label: 'Save Water',
+		click: saveWater
+	}));
+	mapMenu.append(new nw.MenuItem({
+		label: 'Save Image',
+		click: saveImage
+	}));
+	mapMenu.append(new nw.MenuItem({
+		label: 'Save Tile Colors',
+		click: saveTileColors
+	}));
 	topMenu.append(new nw.MenuItem({
 		label: 'Map',
 		submenu: mapMenu

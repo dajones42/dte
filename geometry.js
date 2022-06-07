@@ -281,3 +281,70 @@ let circleCircleLine= function(c1,c2)
 		return rotateLine(sn*c1.r,-cs*c1.r,d-sn*c2.r,cs*c2.r);
 	}
 }
+
+let polySimp= function(polygon,threshold)
+{
+	let findInside= function(p0,p1,p2) {
+		for (let p=p2.next; p!=p0; p=p.next) {
+			if (triArea(p0.x,p0.y,p1.x,p1.y,p.x,p.y)>0 &&
+			  triArea(p1.x,p1.y,p2.x,p2.y,p.x,p.y)>0 &&
+			  triArea(p2.x,p2.y,p0.x,p0.y,p.x,p.y)>0)
+				return p;
+		}
+		return null;
+	}
+	let distSq= function(p1,p2) {
+		let dx= p1.x-p2.x;
+		let dy= p1.y-p2.y;
+		return dx*dx+dy*dy;
+	}
+	let calcAreaInside= function(p1) {
+		let p0= p1.prev;
+		let p2= p1.next;
+		p1.area= triArea(p0.x,p0.y,p1.x,p1.y,p2.x,p2.y);
+		p1.inside= p1;
+		let d01= distSq(p0,p1);
+		let d12= distSq(p1,p2);
+		let d02= distSq(p0,p2);
+		if (d02>d01 && d02>d12 && Math.abs(p1.area)>threshold)
+			return;
+		if (p1.area > 0)
+			p1.inside= findInside(p0,p1,p2);
+		else if (p1.area < 0)
+			p1.inside= findInside(p2,p1,p0);
+		else
+			p1.inside= null;
+	}
+	let p0= polygon[polygon.length-1];
+	for (let i=0; i<polygon.length; i++) {
+		let p1= polygon[i];
+		p0.next= p1;
+		p1.prev= p0;
+		p0= p1;
+	}
+	for (let i=0; i<polygon.length; i++) {
+		calcAreaInside(polygon[i]);
+	}
+	let first= polygon[0];
+	for (let iter=0; iter<polygon.length-3; iter++) {
+		let best= first.inside ? null : first;
+		for (let p=first.next; p!=first; p=p.next) {
+			if (!p.inside &&
+			  (!best || Math.abs(best.area)>Math.abs(p.area))) {
+				best= p;
+			}
+		}
+		if (best == null)
+			break;
+		best.prev.next= best.next;
+		best.next.prev= best.prev;
+		first= best.next;
+		calcAreaInside(best.next);
+		calcAreaInside(best.prev);
+	}
+	let out= [ first ];
+	for (let p=first.next; p!=first; p=p.next) {
+		out.push(p);
+	}
+	return out;
+}

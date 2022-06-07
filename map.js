@@ -28,6 +28,7 @@ let backgroundTiles= [];
 let draggingDir= false;
 let draggingSize= false;
 let overlay= null;
+let moveMode= false;
 
 //	initialize 2d map display
 let setupMap= function()
@@ -57,10 +58,16 @@ let renderMap= function()
 		let v= height/2 - (2048*(tile.z-centerTZ)-centerV)*scale;
 		context.fillText(tile.filename,u,v);
 	}
+	let paint= true;
 	for (let i=0; i<backgroundTiles.length; i++) {
 		let bgt= backgroundTiles[i];
 		if (!bgt.image || !bgt.image.complete)
 			continue;
+		if (bgt.zoom==20 && paint) {
+			paintBackground(context,scale,width,height,
+			  centerU,centerV);
+			paint= false;
+		}
 		let u= (bgt.u-centerU)*scale + width/2;
 		let v= height/2 - (bgt.v-centerV)*scale;
 		let x0= 0;
@@ -83,7 +90,20 @@ let renderMap= function()
 			let skewv= -bgt.skewv/bgt.hgt*sv;
 			context.setTransform(su,skewv,skew,sv,u,v);
 		}
-		context.drawImage(bgt.image,x0,y0,w,h,-w/2,-h/2,w,h);
+		let img= bgt.image;
+//		if (bgt.zoom == 20)
+//			img= fixHydroImage(img);
+		context.drawImage(img,x0,y0,w,h,-w/2,-h/2,w,h);
+		if (bgt.saved) {
+			context.strokeWidth= 1;
+			context.strokeStyle= "fuchsia";//"lightblue";
+			context.beginPath();
+			context.moveTo(-128,-128);
+			context.lineTo(128,128);
+			context.lineTo(128,-128);
+			context.lineTo(-128,128);
+			context.stroke();
+		}
 		context.setTransform(1,0,0,1,0,0);
 	}
 	if (overlay) {
@@ -101,6 +121,10 @@ let renderMap= function()
 		context.drawImage(map.image,x0,y0,w,h,-w/2,-h/2,w,h);
 		context.setTransform(1,0,0,1,0,0);
 		context.globalAlpha= 1;
+	}
+	if (paint) {
+		paintBackground(context,scale,width,height,centerU,centerV);
+		paint= false;
 	}
 	context.strokeWidth= 1;
 	context.strokeStyle= "fuchsia";//"lightblue";
@@ -122,6 +146,25 @@ let renderMap= function()
 		let u= (2048*(tile.x-centerTX)-1024-centerU)*scale + width/2;
 		let v= height/2 - (2048*(tile.z-centerTZ)+1024-centerV)*scale;
 		context.strokeRect(u,v,2048*scale,2048*scale);
+	}
+	if (selected && selectedTrack.type=="contour") {
+		let x= 8*Math.ceil(selected.position.x/8);
+		let y= 8*Math.ceil(selected.position.y/8);
+		let sz= 5;
+		context.beginPath();
+		for (let i=-sz; i<=sz; i++) {
+			let u= (x-8*sz-centerU)*scale + width/2;
+			let v= height/2 - (y+8*i-centerV)*scale;
+			context.moveTo(u,v);
+			u= (x+8*sz-centerU)*scale + width/2;
+			context.lineTo(u,v);
+			u= (x-8*i-centerU)*scale + width/2;
+			v= height/2 - (y-8*sz-centerV)*scale;
+			context.moveTo(u,v);
+			v= height/2 - (y+8*sz-centerV)*scale;
+			context.lineTo(u,v);
+		}
+		context.stroke();
 	}
 	context.strokeWidth= 1;
 	context.strokeStyle= "red";
@@ -269,6 +312,9 @@ let renderMap= function()
 			else
 				context.fillStyle= "blue";
 			context.fillRect(u-3,v-3,6,6);
+			if (cp.name) {
+				context.fillText(cp.name,u,v);
+			}
 			if (cp.model) {
 				context.fillStyle= "yellow";
 				context.fillRect(u-2,v-2,4,4);
@@ -331,7 +377,7 @@ let mapMouseDown= function(event)
 //	console.log("down "+downX+" "+downY);
 	let width= canvas.width;
 	let height= canvas.height;
-	if (event.shiftKey) {
+	if (event.shiftKey || moveMode) {
 		centerU-= (width/2-downX)/scale;
 		centerV+= (height/2-downY)/scale;
 		let ll= uv2ll(centerU,centerV);
@@ -395,9 +441,8 @@ let mapMouseDown= function(event)
 		if (!event.ctrlKey) {
 			if (selected != bestPoint)
 				selectedGroup= null;
-			selected= bestPoint;
-			selectedTrack= bestTrack;
-			if (bestPoint && !bestPoint.endNode && (!bestPoint.sw ||
+			if (selected==bestPoint &&
+			  bestPoint && !bestPoint.endNode && (!bestPoint.sw ||
 			   bestPoint==bestPoint.sw.points[0])) {
 				dragging= bestPoint;
 				draggingDir= bestDir;
@@ -407,6 +452,8 @@ let mapMouseDown= function(event)
 				draggingDir= false;
 				draggingSize= false;
 			}
+			selected= bestPoint;
+			selectedTrack= bestTrack;
 			renderCanvas();
 		} else if (bestPoint == null) {
 			let x= (downX-width/2)/scale + centerU;
@@ -584,7 +631,8 @@ let updateBackgroundTiles= function()
 		return uv;
 	}
 	let zoom= mapType=="imagery" ? 16 : mapType=="topo" ? 16 :
-	  mapType=="imagerytopo" ? 16 : mapType=="hydro" ? 16 : 17;
+	  mapType=="imagerytopo" ? 16 : mapType=="hydro" ? 16 : 
+	  mapType=="osgehydro" ? 16 : 17;
 	let makeBackgroundTile= function(tx,ty) {
 		for (let i=0; i<backgroundTiles.length; i++) {
 			let bgt= backgroundTiles[i];
@@ -603,7 +651,7 @@ let updateBackgroundTiles= function()
 		  "https://basemap.nationalmap.gov/arcgis/rest/"+
 		    "services/USGSImageryTopo/MapServer/tile/"+
 		    zoom+"/"+ty+"/"+tx :
-		 mapType=="hydro" ?
+		 mapType=="hydro" || mapType=="osgehydro" ?
 		  "https://basemap.nationalmap.gov/arcgis/rest/"+
 		    "services/USGSHydroCached/MapServer/tile/"+
 		    zoom+"/"+ty+"/"+tx :
@@ -620,10 +668,23 @@ let updateBackgroundTiles= function()
 		let skewv= .5*((uv10.v-uv00.v)+(uv11.v-uv01.v));
 		console.log("uv "+u+" "+v+" "+wid+" "+hgt+" "+skew+" "+skewv);
 		let bgt= {
-			tx: tx, ty: ty, u: u, v: v,
+			tx: tx, ty: ty, u: u, v: v, zoom: zoom,
 			wid: wid, hgt: hgt, skew: skew, skewv: skewv
 		};
 		backgroundTiles.push(bgt);
+		if (mapType == "osgehydro") {
+			bgt.zoom= 20;
+			let path= routeDir+fspath.sep+'TERRTEX'+fspath.sep+
+			  "hydro"+bgt.tx+"-"+bgt.ty+".png";
+			if (fs.existsSync(path)) {
+				bgt.image= new Image();
+				bgt.hydroImage= bgt.image;
+				let url= "file://"+path;
+				bgt.image.src= url;
+//				console.log(url);
+				return;
+			}
+		}
 //		console.log(url);
 		let loader= new THREE.ImageLoader();
 		loader.load(url,
@@ -638,6 +699,8 @@ let updateBackgroundTiles= function()
 			makeBackgroundTile(tx+i,ty+j);
 		}
 	}
+	if (mapType == "osgehydro")
+		updateOsgeTiles();
 }
 
 //	fetch background images for map display
@@ -872,5 +935,542 @@ let findTopoFeatures= function()
 	for (let i in counts) {
 		if (counts.hasOwnProperty(i))
 			console.log(i+" "+counts[i]);
+	}
+}
+
+let saveWater= function()
+{
+	let getPixelType= function(context,x,y) {
+		let pixel= context.getImageData(x,y,1,1).data;
+//		return pixel[3]>0;
+		return pixel[3]==255;
+	}
+	let mintx= 1e10;
+	let maxtx= 0;
+	let minty= 1e10;
+	let maxty= 0;
+	for (let i=0; i<backgroundTiles.length; i++) {
+		let bgt= backgroundTiles[i];
+		if (!bgt.image || !bgt.image.complete)
+			continue;
+		if (mintx > bgt.tx)
+			mintx= bgt.tx;
+		if (maxtx < bgt.tx)
+			maxtx= bgt.tx;
+		if (minty > bgt.ty)
+			minty= bgt.ty;
+		if (maxty < bgt.ty)
+			maxty= bgt.ty;
+	}
+	let boxsz= 4;
+	let wid= 256*(maxtx-mintx+1)/boxsz;
+	let hgt= 256*(maxty-minty+1)/boxsz;
+	console.log("size "+wid+" "+hgt+" "+
+	  mintx+" "+maxtx+" "+minty+" "+maxty);
+	let pixels= [];
+	let get= function(i,j) {
+		let v= pixels[i*wid+j]
+		return v ? v : 0;
+	}
+	let set= function(i,j,v) {
+		pixels[i*wid+j]= v;
+	}
+	let su0= 0;
+	let sui= 0;
+	let suj= 0;
+	let sv0= 0;
+	let svi= 0;
+	let svj= 0;
+	let ns= 0;
+	for (let i=0; i<backgroundTiles.length; i++) {
+		let bgt= backgroundTiles[i];
+		if (!bgt.image || !bgt.image.complete)
+			continue;
+		console.log("bgt "+bgt.tx+" "+bgt.ty+" "+
+		  bgt.u+" "+bgt.v+" "+bgt.wid+" "+bgt.hgt);
+		let w= bgt.image.width;
+		let h= bgt.image.height;
+		let icanvas= document.createElement("canvas");
+		icanvas.width= w;
+		icanvas.height= h;
+		let icontext= icanvas.getContext("2d");
+		icontext.drawImage(bgt.image,0,0);
+		let x0= 256*(bgt.tx-mintx);
+		let y0= 256*(bgt.ty-minty);
+		let ui= bgt.wid/256;
+		let uj= bgt.skew/256;
+		let u0= bgt.u - .5*bgt.wid - x0*ui - y0*uj + ui;
+		let vi= bgt.skewv/256;
+		let vj= -bgt.hgt/256;
+		let v0= bgt.v + .5*bgt.hgt - x0*vi - y0*vj;
+		console.log(" "+u0+" "+ui+" "+uj+" "+v0+" "+vi+" "+vj);
+		su0+= u0 + ui*boxsz/2 + uj*boxsz/2;
+		sui+= ui*boxsz;
+		suj+= uj*boxsz;
+		sv0+= v0 + vi*boxsz/2 + vj*boxsz/2;
+		svi+= vi*boxsz;
+		svj+= vj*boxsz;
+		ns++;
+		for (let x=0; x<w; x+=boxsz) {
+			for (let y=0; y<h; y+=boxsz) {
+				let n= 0;
+				for (let i1=0; i1<boxsz; i1++) {
+					for (let j1=0; j1<boxsz; j1++) {
+						if (getPixelType(icontext,
+						  x+i1,y+j1))
+							n++;
+					}
+				}
+				if (n == boxsz*boxsz) {
+					set((x0+x)/boxsz,(y0+y)/boxsz,1);
+				}
+			}
+		}
+	}
+	let u0= su0/ns;
+	let ui= sui/ns;
+	let uj= suj/ns;
+	let v0= sv0/ns;
+	let vi= svi/ns;
+	let vj= svj/ns;
+	console.log(" "+u0+" "+ui+" "+uj+" "+v0+" "+vi+" "+vj);
+	let getXY= function(i,j) {
+		return { x: u0+ui*i+uj*j, y: v0+vi*i+vj*j };
+	}
+	let borders= [null,{hole:true,points:[],parent:1}];
+	let nbd= 1;
+	let lnbd= 1;
+	let findCW= function(i,j,dj) {
+		if (get(i,j+dj))
+			return { i:i, j:j+dj };
+		if (get(i+dj,j))
+			return { i:i+dj, j:j };
+		if (get(i,j-dj))
+			return { i:i, j:j-dj };
+		if (get(i-dj,j))
+			return { i:i-dj, j:j };
+		return null;
+	}
+	let findCCW= function(ij3,ij2) {
+		let i= ij3.i;
+		let j= ij3.j;
+		let di= ij2.i - ij3.i;
+		let dj= ij2.j - ij3.j;
+		let jplus= false;
+//		console.log(" ccw "+i+" "+j+" "+di+" "+dj);
+//		console.log("  "+(i-dj)+" "+(j+di)+" "+get(i-dj,j+di));
+		if (get(i-dj,j+di))
+			return { i:i-dj, j:j+di, jplus: jplus, nedge: 0 };
+		jplus|= di>0;
+//		console.log("  "+(i-di)+" "+(j-dj)+" "+get(i-di,j-dj));
+		if (get(i-di,j-dj))
+			return { i:i-di, j:j-dj, jplus: jplus, nedge: 1 };
+		jplus|= dj<0;
+//		console.log("  "+(i+dj)+" "+(j-di)+" "+get(i+dj,j-di));
+		if (get(i+dj,j-di))
+			return { i:i+dj, j:j-di, jplus: jplus, nedge: 2 };
+		jplus|= di<0;
+//		console.log("  "+(i+di)+" "+(j+dj)+" "+get(i+di,j+dj));
+		return { i:i+di, j:j+dj, jplus: jplus, nedge: 3 };
+	}
+	let printPixels= function() {
+		for (let i=0; i<wid; i++) {
+			for (let j=0; j<hgt; j++) {
+				console.log(" "+i+" "+j+" "+get(i,j));
+			}
+		}
+	}
+	let followBorder= function(i,j,hole) {
+		let lb= borders[lnbd];
+		let parent= ((hole && lb.hole) || (!hole && !lb.hole)) ?
+		  lb.parent : lnbd;
+		let points= [];
+		borders.push({hole:hole,points:points,parent:parent});
+		nbd++;
+//		console.log("follow "+i+" "+j+" "+hole+" "+nbd+" "+lnbd);
+		let ij1= findCW(i,j,hole?1:-1);
+		if (!ij1) {
+			points.push({i:i, j:j, nedge:4});
+			set(i,j,-nbd);
+			return;
+		}
+		let ij2= ij1;
+		let ij3= { i:i, j:j };
+		for (let iter=0; iter<wid*hgt; iter++) {
+			points.push(ij3);
+			let ij4= findCCW(ij3,ij2);
+			ij3.nedge= ij4.nedge;
+//			console.log(" findccw "+ij3.i+" "+ij3.j+" "+
+//			  ij2.i+" "+ij2.j+" "+
+//			  ij4.i+" "+ij4.j+" "+ij4.nedge);
+			if (get(ij3.i,ij3.j+1)==0 && ij4.jplus) {
+				set(ij3.i,ij3.j,-nbd);
+			} else if (get(ij3.i,ij3.j) == 1) {
+				set(ij3.i,ij3.j,nbd);
+			}
+			if (ij4.i==i && ij4.j==j &&
+			  ij3.i==ij1.i && ij3.j==ij1.j)
+				break;
+			ij2= ij3;
+			ij3= ij4;
+		}
+		if (get(i,j) != 1)
+			lnbd= Math.abs(get(i,j));
+//		printPixels();
+	}
+//	wid= 5;
+//	hgt= 8;
+//	pixels= [];
+//	for (let i=1; i<4; i++) 
+//		for (let j=1; j<4; j++)
+//			set(i,j,1);
+//	set(1,6,1);
+	for (let i=0; i<wid; i++) {
+		lnbd= 1;
+		for (let j=0; j<hgt; j++) {
+			let p= get(i,j);
+			if (p==1 && get(i,j-1)==0) {
+				followBorder(i,j,false);
+			} else if (p>=1 && get(i,j+1)==0) {
+				if (p > 1)
+					lnbd= p;
+				followBorder(i,j,true);
+			}
+		}
+	}
+	for (let i=0; i<wid; i++) {
+		for (let j=0; j<hgt; j++) {
+			if (get(i,j) == 1) {
+				let p= getXY(i,j);
+				let e= getElevation(p.x,p.y,true);
+				setElevation(p.x,p.y,e);
+			}
+		}
+	}
+	let threshold=
+	  parseFloat(document.getElementById('waterthreshold').value);
+	let polys= [];
+	for (let i=2; i<borders.length; i++) {
+		let border= borders[i];
+		let points= border.points;
+//		console.log("border "+i+" "+border.hole+" "+border.parent+" "+
+//		  points.length);
+		if (border.hole || points.length<10)
+			continue;
+//		let p0= getXY(points[0].i,points[0].j);
+//		let p1= p0;
+//		let poly= [p0];
+//		for (let j=0; j<points.length; j++) {
+//			let p2= getXY(points[j].i,points[j].j);
+//			let a= triArea(p0.x,p0.y,p1.x,p1.y,p2.x,p2.y);
+//			if (Math.abs(a) > threshold) {
+//				poly.push(p1);
+//				p0= p1;
+//			}
+//			p1= p2;
+//		}
+		let poly= [];
+		let p0= points[points.length-1];
+		for (let j=0; j<points.length; j++) {
+			let p1= points[j];
+			let di= .5*(p1.i-p0.i);
+			let dj= .5*(p1.j-p0.j);
+			for (let k=0; k<p1.nedge; k++) {
+				poly.push(getXY(p1.i+dj,p1.j-di));
+				let t= di;
+				di= -dj;
+				dj= t;
+			}
+			p0= p1;
+		}
+		if (poly.length > 4)
+//			polys.push(polySimp(poly,threshold));
+			polys.push(poly);
+//		console.log("poly "+poly.length);
+	}
+	console.log("polys "+polys.length);
+	for (let i=0; i<polys.length; i++) {
+		let poly= polys[i];
+		let track= {
+			controlPoints: [],
+			trackPoints: [],
+			dynTrackPoints: [],
+			groundPoints: [],
+			type: "water"
+		};
+//		tracks.push(track);
+		let controlPoints= track.controlPoints;
+		for (let j=0; j<poly.length; j++) {
+			let p= poly[j];
+			let z= getElevation(p.x,p.y,true);
+			if (z <= 0)
+				z= 0;
+			let cp= { position: new THREE.Vector3(p.x,p.y,z)
+			  };//, straight: true };
+			controlPoints.push(cp);
+		}
+	}
+	calcTrack();
+	renderCanvas();
+}
+
+let saveImage= function()
+{
+	let best= null;
+	let bestd= 1e10;
+	let bestz= 0;
+	for (let i=0; i<backgroundTiles.length; i++) {
+		let bgt= backgroundTiles[i];
+		if (!bgt.image || !bgt.image.complete)
+			continue;
+		let du= centerU-bgt.u;
+		let dv= centerV-bgt.v;
+		if (Math.abs(du)>.5*bgt.wid || Math.abs(dv)>.5*bgt.hgt)
+			continue;
+		let d= du*du + dv*dv;
+		if (bgt.zoom>bestz || (bgt.zoom==bestz && bestd > d)) {
+			bestd= d;
+			best= bgt;
+			bestz= bgt.zoom;
+		}
+	}
+	if (!best)
+		return;
+	best.saved= true;
+	console.log("best "+best+" "+bestz+" "+bestd);
+	let path= routeDir+fspath.sep+'TERRTEX'+fspath.sep+
+	  mapType+best.tx+"-"+best.ty+".png";
+	console.log(path);
+	console.log("src "+best.image.src);
+	let img= best.image;
+	if (mapType == "hydro")
+		img= fixHydroImage(img);
+	let dataUrl= img.toDataURL();
+	let start= dataUrl.indexOf("base64,");
+	let buf= Buffer.from(dataUrl.substr(start+6),"base64");
+	fs.writeFileSync(path,buf);
+}
+
+let paintBackground= function(context,scale,width,height,cu,cv)
+{
+	for (let i=0; i<tracks.length; i++) {
+		let track= tracks[i];
+		if (track.type != "paint")
+			continue;
+		let trackPoints= track.trackPoints;
+		let img= document.getElementById('trees');
+		let pattern= context.createPattern(img,"repeat");
+		//context.fillStyle= "#a8b3a9";
+		context.fillStyle= pattern;
+		context.beginPath();
+		for (let i=0; i<trackPoints.length; i++) {
+			let p= trackPoints[i];
+			let u= (p.x-cu)*scale + width/2;
+			let v= height/2 - (p.y-cv)*scale;
+			if (i == 0)
+				context.moveTo(u,v);
+			else
+				context.lineTo(u,v);
+		}
+		context.fill();
+	}
+}
+
+let saveTileColors= function()
+{
+	let getPixelType= function(context,x,y) {
+		let pixel= context.getImageData(x,y,1,1).data;
+//		return pixel[3]>0;
+		return pixel[3]==255;
+	}
+	let mintx= 1e10;
+	let maxtx= 0;
+	let minty= 1e10;
+	let maxty= 0;
+	for (let i=0; i<backgroundTiles.length; i++) {
+		let bgt= backgroundTiles[i];
+		if (!bgt.image || !bgt.image.complete)
+			continue;
+		if (mintx > bgt.tx)
+			mintx= bgt.tx;
+		if (maxtx < bgt.tx)
+			maxtx= bgt.tx;
+		if (minty > bgt.ty)
+			minty= bgt.ty;
+		if (maxty < bgt.ty)
+			maxty= bgt.ty;
+	}
+	let scales= [];
+	let su0= 0;
+	let sui= 0;
+	let suj= 0;
+	let sv0= 0;
+	let svi= 0;
+	let svj= 0;
+	let ns= 0;
+	for (let i=0; i<backgroundTiles.length; i++) {
+		let bgt= backgroundTiles[i];
+		if (!bgt.image || !bgt.image.complete)
+			continue;
+//		console.log("bgt "+bgt.tx+" "+bgt.ty+" "+
+//		  bgt.u+" "+bgt.v+" "+bgt.wid+" "+bgt.hgt);
+		if (!scales[bgt.zoom])
+			scales[bgt.zoom]= { su0: 0, sui: 0, suj: 0,
+			  sv0: 0, svi: 0, svj: 0, ns: 0 };
+		let scale= scales[bgt.zoom];
+		let x0= 256*(bgt.tx-mintx);
+		let y0= 256*(bgt.ty-minty);
+		let ui= bgt.wid/256;
+		let uj= bgt.skew/256;
+		let u0= bgt.u - .5*bgt.wid - x0*ui - y0*uj + ui;
+		let vi= bgt.skewv/256;
+		let vj= -bgt.hgt/256;
+		let v0= bgt.v + .5*bgt.hgt - x0*vi - y0*vj;
+//		console.log(" "+u0+" "+ui+" "+uj+" "+v0+" "+vi+" "+vj);
+		scale.su0+= u0 + ui/2 + uj/2;
+		scale.sui+= ui;
+		scale.suj+= uj;
+		scale.sv0+= v0 + vi/2 + vj/2;
+		scale.svi+= vi;
+		scale.svj+= vj;
+		scale.ns++;
+	}
+	for (let i=0; i<scales.length; i++) {
+		if (!scales[i])
+			continue;
+		let scale= scales[i];
+		scale.u0= scale.su0/scale.ns;
+		scale.ui= scale.sui/scale.ns;
+		scale.uj= scale.suj/scale.ns;
+		scale.v0= scale.sv0/scale.ns;
+		scale.vi= scale.svi/scale.ns;
+		scale.vj= scale.svj/scale.ns;
+		console.log(" "+i+" "+scale.u0+" "+scale.ui+" "+scale.uj+" "+
+		  scale.v0+" "+scale.vi+" "+scale.vj+" "+scale.ns);
+	}
+	let getXY= function(i,j,scale) {
+		return { x: scale.u0+scale.ui*i+scale.uj*j,
+		  y: scale.v0+scale.vi*i+scale.vj*j };
+	}
+	let tx= centerTX + Math.round(centerU/2048);
+	let tz= centerTZ + Math.round(centerV/2048);
+	let tile= findTile(tx,tz);
+	let cu= 2048*(tx-centerTX);
+	let cv= 2048*(tz-centerTZ);
+	console.log("save tile colors "+tx+" "+tz+" "+cu+" "+cv+" "+
+	  tile.filename);
+	let initSums= function() {
+		let sums= [];
+		for (let i=0; i<16; i++)
+			for (let j=0; j<16; j++)
+				sums[i*16+j]= { r:0, g:0, b:0, n:0 };
+		return sums;
+	}
+	let sums= initSums();
+	for (let i=0; tile.patchModels && i<tile.patchModels.length; i++) {
+		let tpm= tile.patchModels[i];
+		sums[tpm[0]*16+tpm[1]].sqSums= initSums();
+	}
+	let addColor= function(sum,pixel) {
+		sum.r+= pixel[0];
+		sum.g+= pixel[1];
+		sum.b+= pixel[2];
+		sum.n++;
+	}
+	for (let i=0; i<backgroundTiles.length; i++) {
+		let bgt= backgroundTiles[i];
+		if (!bgt.image || !bgt.image.complete)
+			continue;
+		let scale= scales[bgt.zoom];
+		console.log("bgt "+bgt.tx+" "+bgt.ty+" "+
+		  bgt.u+" "+bgt.v+" "+bgt.wid+" "+bgt.hgt+" "+bgt.zoom);
+		let w= bgt.image.width;
+		let h= bgt.image.height;
+		let icanvas= document.createElement("canvas");
+		icanvas.width= w;
+		icanvas.height= h;
+		let icontext= icanvas.getContext("2d");
+		icontext.drawImage(bgt.image,0,0);
+		let x0= 256*(bgt.tx-mintx);
+		let y0= 256*(bgt.ty-minty);
+		for (let x=0; x<w; x++) {
+			for (let y=0; y<h; y++) {
+				let xy= getXY(x0+x,y0+y,scale);
+				let u= xy.x-cu;
+				let v= xy.y-cv;
+				if (u<-1024 || u>1024 || v<-1024 || v>1024)
+					continue;
+				let pixel= icontext.getImageData(x,y,1,1).data;
+				if (pixel[3] == 0)
+					continue;
+				let pi= Math.floor((1024-xy.y+cv)/128);
+				let pj= Math.floor((xy.x+1024-cu)/128);
+				if (pi>=0 && pi<=15 && pj>=0 && pj<=15) {
+					let sum= sums[pi*16+pj];
+					addColor(sum,pixel);
+					if (sum.sqSums) {
+						let sqi= Math.floor(
+						  (1024-xy.y+cv-128*pi)/8);
+						let sqj= Math.floor(
+						  (xy.x+1024-cu-128*pj)/8);
+						if (sqi>=0 && sqi<=15 &&
+						  sqj>=0 && sqj<=15) {
+							addColor(sum.sqSums[
+							  sqi*16+sqj],pixel);
+						}
+					}
+				} else {
+					console.log("pipj "+pi+" "+pj+" "+
+					  u+" "+v);
+				}
+			}
+		}
+	}
+	let colorIndex= function(sum) {
+		if (sum.n == 0)
+			return 0;
+		let r= sum.r/sum.n;
+		let g= sum.g/sum.n;
+		let b= sum.b/sum.n;
+		let colors= [
+			{ index: 0, r:90, g:116, b:126 },//forest
+			{ index: 1, r:138, g:164, b:156 },//field
+			{ index: 3, r:147, g:180, b:165 },//field20
+			{ index: 4, r:156, g:186, b:173 },//field40
+			{ index: 2, r:183, g:191, b:188 }//fieldw
+		];
+		let best= 0;
+		let bestd= 1e10;
+		for (let i=0; i<colors.length; i++) {
+			let c= colors[i];
+			let dr= r - c.r;
+			let dg= g - c.g;
+			let db= b - c.b;
+			let d= dr*dr + dg*dg + db*db;
+			if (d < bestd) {
+				bestd= d;
+				best= c.index;
+			}
+		}
+		return best;
+	}
+	tile.colors= [];
+	tile.patchColors= [];
+	for (let i=0; i<16; i++) {
+		for (let j=0; j<16; j++) {
+			let s= sums[i*16+j];
+			tile.colors[i*16+j]= colorIndex(s);
+			if (s.sqSums) {
+				let sqc= [];
+				for (let k=0; k<s.sqSums.length; k++)
+					sqc[k]= colorIndex(s.sqSums[k]);
+				tile.patchColors[i*16+j]= sqc;
+			}
+			if (s.n > 0) {
+				console.log("color "+i+" "+j+" "+
+				  (s.r/s.n)+" "+(s.g/s.n)+" "+
+				  (s.b/s.n)+" "+s.n+" "+colorIndex(s));
+			}
+		}
 	}
 }

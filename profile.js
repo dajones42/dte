@@ -66,9 +66,12 @@ let profileMouseDown= function(event)
 			}
 		}
 		if (bestPoint && !bestPoint.endNode) {
-			selected= bestPoint;
 			selectedGroup= null;
-			dragging= bestPoint;
+			if (selected == bestPoint)
+				dragging= bestPoint;
+			else
+				dragging= null;
+			selected= bestPoint;
 		} else {
 			dragging= null;
 		}

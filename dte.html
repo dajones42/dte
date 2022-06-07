@@ -32,6 +32,7 @@ THE SOFTWARE.
 <script src="render3d.js"></script>
 <script src="ighproj.js"></script>
 <script src="csg.js"></script>
+<script src="goldensection.js"></script>
 <link rel="stylesheet" href="dte.css" type="text/css">
 </head>
 <body>
@@ -51,18 +52,26 @@ THE SOFTWARE.
 <option value=19768>A1tYPnt3dBMnl
 <option value=38052>A1tPnt6dBLftMnl
 <option value=38053>A1tPnt6dBRgtMnl
+<option value=22697>A1tPnt6dBLftMnlDiv
+<option value=22698>A1tPnt6dBRgtMnlDiv
 <option value=19762>A1tYPnt6dBMnl
 <option value=216>A1tPnt10dLftMnl
 <option value=218>A1tPnt10dRgtMnl
 <option value=217>A1tYPnt10dMnl
+<option value=39829>A1tPnt6dLftMnl
+<option value=39830>A1tPnt6dRgtMnl
 <option value=32248>SR_1tSwt_w_m06dL
 <option value=32249>SR_1tSwt_w_m06dR
+<option value=32246>SR_1tSwt_w_m06dLX
+<option value=32247>SR_1tSwt_w_m06dRX
 <option value=32310>SR_1tSwt_w_m03dL
 <option value=32311>SR_1tSwt_w_m03dR
 <option value=20916>SR_1tSwt_w_m03dL_Ext
 <option value=20917>SR_1tSwt_w_m03dR_Ext
 <option value=20918>SR_1tSwt_w_im03dL_Ext
 <option value=20919>SR_1tSwt_w_im03dR_Ext
+<option value=24799>SR_1tDerail_w_L
+<option value=24800>SR_1tDerail_w_R
 </select></td>
 </tr><tr>
 <td align=left>Model:</td>
@@ -78,6 +87,14 @@ THE SOFTWARE.
 <option value=2048>2048
 </select></td>
 </tr><tr>
+<td align=left>Patch Image Size:</td>
+<td align=left><select id="patchimagesize">
+<option value=0 selected>0
+<option value=128>128
+<option value=256>256
+<option value=512>512
+</select></td>
+</tr><tr>
 <td align=left>Track Type:</td>
 <td align=left><select id="tracktype">
 <option value=branch selected>Branch
@@ -85,9 +102,11 @@ THE SOFTWARE.
 <option value=main>Main
 <option value=water>Water
 <option value=road>Road
+<option value=road1>Steep Bank Road
 <option value=dirtroad>Dirt Road
 <option value=dirtroad1>1 Lane Dirt Road
 <option value=contour>Contour
+<option value=paint>Paint
 </select></td>
 </tr><tr>
 <td align=left>Track Name:</td>
@@ -112,6 +131,7 @@ THE SOFTWARE.
 <option value=crbd>Concrete Road Deck
 <option value=ibeam>I-Beam
 <option value=turntable>Turn Table
+<option value=norails>No Rails
 </select></td>
 </tr><tr>
 <td align=left>Tree Type:</td>
@@ -137,6 +157,12 @@ THE SOFTWARE.
 </select></td>
 <td align=left>Tree Density 2:</td>
 <td align=left><input id="density2" type="text" value=".4"/></td>
+</tr><tr>
+<td align=left>Water Threshold:</td>
+<td align=left><input id="waterthreshold" type="text" value="10"/></td>
+</tr><tr>
+<td align=left>Level Crossing Offset:</td>
+<td align=left><input id="crossingoffset" type="text" value=".15"/></td>
 </tr>
 </table>
 <hr>
@@ -244,5 +270,7 @@ Open Street Maps: use Open Street Map images for map background.
 <input id="fileexport" type="file" nwsaveas style="display:none" accept=".csv"/>
 <img id="trackimage" src="track512.png" style="display:none"></img>
 <img id="microtex" src="microtex.png" style="display:none"></img>
+<img id="trees" src="trees.png" style="display:none"></img>
+<img id="field" src="field.png" style="display:none"></img>
 </body>
 </html>

@@ -65,6 +65,8 @@ window.onload= function() {
 			rotateMapOverlay(-.1*Math.PI/180);
 		} else if (e.key=='l') {
 			rotateMapOverlay(.1*Math.PI/180);
+		} else if (e.key=='m') {
+			moveMode= !moveMode;
 		} else {
 			console.log("keydown "+e.keyCode+" "+e.key);
 		}
@@ -383,6 +385,7 @@ let equalizeCurveRadius= function()
 	let i= selectedTrack.controlPoints.indexOf(selected);
 	if (i==0 || i==selectedTrack.length-1)
 		return;
+	console.log("eqr "+i);
 	let cp0= selectedTrack.controlPoints[i-1];
 	let cp2= selectedTrack.controlPoints[i+1];
 	if (cp0.straight)
@@ -393,6 +396,31 @@ let equalizeCurveRadius= function()
 	  cp2.position.y-selected.position.y,0).normalize();
 	if (lo.dot(hi) <= 0)
 		return;
+	let objective= function(x) {
+		let dir= lo.clone().lerp(hi,x);
+		console.log("eqrad "+x+" "+dir.x+" "+dir.y);
+		selected.direction= dir;
+		let c1= calcCurve(cp0.position,selected.position,cp0.direction,
+		  dir);
+		let c2= calcCurve(selected.position,cp2.position,dir,
+		  cp2.direction);
+		if (c1.bad || c2.bad || (c1.len2>0 && c2.len1>0)) {
+			console.log("aborteqr "+c1.bad+" "+c2.bad+" "+
+			  c1.len2+" "+c2.len1);
+			return 1e10;
+		}
+//		let deg= radius2deg(Math.min(c1.radius,c2.radius));
+		let deg= radius2deg(c1.radius)+radius2deg(c2.radius);
+		console.log("eqrad "+deg+" "+c1.radius+" "+c2.radius+" "+
+		  c1.len1+" "+c1.len2+" "+c2.len1+" "+c2.len2);
+		return deg;
+	}
+	let x= gsOpt(.01,.99,objective,1e-3);
+	selected.direction= lo.clone().lerp(hi,x);
+	selected.forcedDirection= true;
+	calcTrack();
+	renderCanvas();
+	return;
 	for (let i=0; i<12; i++) {
 		let dir= lo.clone().add(hi).normalize();
 		selected.direction= dir;
@@ -401,15 +429,17 @@ let equalizeCurveRadius= function()
 		let c2= calcCurve(selected.position,cp2.position,dir,
 		  cp2.direction);
 		if (c1.bad || c2.bad || (c1.len2>0 && c2.len1>0)) {
-//			console.log("aborteqr "+c1.bad+" "+c2.bad+" "+
-//			  c1.len2+" "+c2.len1);
+			console.log("aborteqr "+c1.bad+" "+c2.bad+" "+
+			  c1.len2+" "+c2.len1);
 			return;
 		}
-//		console.log("eqrad "+i+" "+c1.radius+" "+c2.radius+" "+
-//		  dir.x+" "+dir.y+" "+lo.x+" "+lo.y+" "+hi.x+" "+hi.y);
+		console.log("eqrad "+i+" "+c1.radius+" "+c2.radius+" "+
+		  c1.len1+" "+c1.len2+" "+c2.len1+" "+c2.len2);
+		console.log(" "+
+		  dir.x+" "+dir.y+" "+lo.x+" "+lo.y+" "+hi.x+" "+hi.y);
 		let diff= c1.radius - c2.radius;
 		if (i>10 && Math.abs(diff)>5) {
-//			console.log("aborteqr "+i+" "+diff);
+			console.log("aborteqr "+i+" "+diff);
 			return;
 		}
 		if (c1.radius > c2.radius)
@@ -687,7 +717,7 @@ let makeTrackPoints= function(points,curves)
 		}
 		if (c.radius > 0) {
 			let perp= new THREE.Vector2(-dir.y,dir.x);
-			let m= Math.ceil(Math.abs(c.angle)*180/Math.PI);
+			let m= Math.ceil(Math.abs(c.angle)*180/Math.PI/2);
 			let angle= c.angle/m;
 			let t= Math.abs(c.radius*Math.tan(angle/2));
 			if (t < .01)
@@ -1955,8 +1985,9 @@ let updateSwitch= function(sw,grade,keepDir)
 	let sn= Math.sin(sw.angle);
 	sw.grade= grade;
 	let csg= Math.sqrt(1-sw.grade*sw.grade);
-//	console.log("updatesw "+sw.angle+" "+cs+" "+sn+" "+grade+" "+csg);
 	let p0= sw.points[0];
+//	if (p0.extSwitchPoint)
+//	 console.log("updatesw "+sw.angle+" "+cs+" "+sn+" "+grade+" "+csg);
 	if (!keepDir) {
 		p0.direction= new THREE.Vector3(-cs,-sn,0);
 		p0.forcedDirection= 1;
@@ -1966,7 +1997,8 @@ let updateSwitch= function(sw,grade,keepDir)
 	for (let i=1; i<sw.points.length; i++) {
 		let p= sw.points[i];
 		let o= sw.offsets[i-1];
-//		console.log("updatesw "+i+" "+o.x+" "+o.y+" "+sw.angles[i-1]);
+//		if (p.extSwitchPoint)
+//		 console.log("updatesw "+i+" "+o.x+" "+o.y+" "+sw.angles[i-1]);
 		p.position.x= p0.position.x + cs*o.x*csg - sn*o.y;
 		p.position.y= p0.position.y + cs*o.y + sn*o.x*csg;
 		p.position.z= p0.position.z + o.x*sw.grade;
@@ -1977,6 +2009,15 @@ let updateSwitch= function(sw,grade,keepDir)
 			p.direction=
 			  new THREE.Vector3(Math.cos(a),Math.sin(a),0);
 			p.forcedDirection= 1;
+		}
+		if (p.extSwitchPoint) {
+			let ep= p.extSwitchPoint;
+			let dp= ep.position.clone().sub(p0.position);
+			let dot= dp.dot(p0.direction);
+//			console.log("extswp "+ep.position.z+" "+p0.position.z+
+//			  " "+dot+" "+sw.grade);
+			ep.position.z= p0.position.z - dot*sw.grade;
+//			console.log("extswp "+ep.position.z);
 		}
 	}
 	sw.pathPoints= [];
@@ -2001,6 +2042,22 @@ let updateSwitch= function(sw,grade,keepDir)
 //	Updates all switches and the fixes control point directions.
 let updateSwitches= function()
 {
+	for (let i=0; i<tracks.length; i++) {
+		let t= tracks[i];
+		let n= t.controlPoints.length;
+		if (n < 2)
+			continue;
+		let cp= t.controlPoints[0];
+		if (cp.sw && (cp.sw.shapeID==32246 || cp.sw.shapeID==32247))
+			cp.extSwitchPoint= t.controlPoints[1];
+		else if (cp.sw)
+			cp.extSwitchPoint= null;
+		cp= t.controlPoints[n-1];
+		if (cp.sw && (cp.sw.shapeID==32246 || cp.sw.shapeID==32247))
+			cp.extSwitchPoint= t.controlPoints[n-2];
+		else if (cp.sw)
+			cp.extSwitchPoint= null;
+	}
 	for (let i=0; i<switches.length; i++)
 		updateSwitch(switches[i],switches[i].grade,false);
 	for (let i=0; i<tracks.length; i++) {
@@ -2287,6 +2344,8 @@ let saveData= function(filename)
 				p.forest= cp.forest;
 			if (cp.name)
 				p.name= cp.name;
+			if (cp.dzdw)
+				p.dzdw= cp.dzdw;
 			dTrack.points.push(p);
 			if (cp.sw) {
 				cp.tIndex= i;
@@ -2324,6 +2383,9 @@ let saveData= function(filename)
 		if (tile.patchModels)
 			data.patchModels.push({ tx:tile.x, tz:tile.z,
 			  patchModels: tile.patchModels });
+//		if (tile.patchColors)
+//			data.patchColors.push({ tx:tile.x, tz:tile.z,
+//			  patchColors: tile.patchColors });
 	}
 	let s= JSON.stringify(data,null,1);
 	if (filename.indexOf(".json") < 0)
@@ -2387,6 +2449,8 @@ let readData= function(filename)
 				p.forest= dp.forest;
 			if (dp.name)
 				p.name= dp.name;
+			if (dp.dzdw)
+				p.dzdw= dp.dzdw;
 			track.controlPoints.push(p);
 		}
 	}
@@ -2421,6 +2485,12 @@ let readData= function(filename)
 		let tile= findTile(dpm.tx,dpm.tz);
 		if (tile)
 			tile.patchModels= dpm.patchModels;
+	}
+	for (let i=0; data.patchColors && i<data.patchColors.length; i++) {
+		let dpc= data.patchColors[i];
+		let tile= findTile(dpc.tx,dpc.tz);
+		if (tile)
+			tile.patchColors= dpc.patchColors;
 	}
 	calcTrack();
 	renderCanvas();
@@ -3018,40 +3088,51 @@ let calcTrackPointElevations= function()
 		if (controlPoints.length < 2)
 			continue;
 		let trackPoints= track.trackPoints;
-		let cp0= controlPoints[0];
-		let cp1= controlPoints[1];
 		let dp0= dynTrackPoints[0];
 		let dp1= dynTrackPoints[1];
+		let cp0= controlPoints[0];
+		let cp1= controlPoints[1];
 		let tp0= trackPoints[cp0.trackPoint];
 		tp0.z= interpElevation(cp0,cp1,0);
-//		for (let j=1; j<controlPoints.length; j++) {
 		for (let j=1; j<dynTrackPoints.length; j++) {
-			cp1= controlPoints[j];
 			dp1= dynTrackPoints[j];
-//			let dist= cp0.distance;
-//			for (let k=cp0.trackPoint+1; k<=cp1.trackPoint; k++) {
 			let dist= dp0.distance;
 			for (let k=dp0.trackPoint+1; k<=dp1.trackPoint; k++) {
 				let tp1= trackPoints[k];
 				dist+= tp1.distanceTo(tp0);
-//				if (dist > cp1.distance)
-//					dist= cp1.distance;
 				if (dist > dp1.distance)
 					dist= dp1.distance;
-//				let a= (dist-cp0.distance)/
-//				  (cp1.distance-cp0.distance);
 				let a= (dist-dp0.distance)/
 				  (dp1.distance-dp0.distance);
-//				tp1.z= interpElevation(cp0,cp1,a);
 				tp1.z= a*dp1.elevation + (1-a)*dp0.elevation;
-//				if (track == selectedTrack)
-//				if (cp0 == selected)
-//					console.log("tpelev "+j+" "+k+" "+
-//					  tp1.z+" "+a+" "+dist);
 				tp0= tp1;
 			}
-			cp0= cp1;
 			dp0= dp1;
+		}
+		let dzdw0= cp0.dzdw || 0;
+		let dzdw1= cp1.dzdw || 0;
+		tp0= trackPoints[cp0.trackPoint];
+		tp0.dzdw= dzdw0;
+		for (let j=1; j<controlPoints.length; j++) {
+			cp1= controlPoints[j];
+//			console.log(" "+j+" "+cp1);
+			dzdw1= cp1.dzdw || 0;
+			let dist= cp0.distance;
+			for (let k=cp0.trackPoint+1; k<=cp1.trackPoint; k++) {
+				let tp1= trackPoints[k];
+				dist+= tp1.distanceTo(tp0);
+				if (dist > cp1.distance)
+					dist= cp1.distance;
+				let a= (dist-cp0.distance)/
+				  (cp1.distance-cp0.distance);
+				tp1.dzdw= a*dzdw1 + (1-a)*dzdw0;
+				tp0= tp1;
+//				if (tp1.dzdw)
+//					console.log("dzdw "+tp1.dzdw+" "+
+//					  i+" "+j+" "+k);
+			}
+			cp0= cp1;
+			dzdw0= dzdw1;
 		}
 	}
 }
@@ -3190,29 +3271,131 @@ let setLength= function()
 
 let setCrossingLevel= function()
 {
-	if (!selected || !selected.straight)
+	if (!selected)// || !selected.straight)
 		return;
 	let k= selectedTrack.controlPoints.indexOf(selected);
 	if (k==selectedTrack.length-1)
 		return;
+	console.log("set crossing "+selected.straight);
+	calcTrackPointElevations();
 	let p1= selected.position;
 	let cp2= selectedTrack.controlPoints[k+1];
 	let p2= cp2.position;
+	let de= 0;
+	let dot= 0;
+	let grade= 0;
+	let n= 0;
 	for (let i=0; i<tracks.length; i++) {
 		let track= tracks[i];
+		if (track == selectedTrack)
+			continue;
 		let controlPoints= track.controlPoints;
+		if (controlPoints.length < 2)
+			continue;
 		for (let j=0; j<controlPoints.length-1; j++) {
 			let cp= controlPoints[j];
-			if (cp==selected || !cp.straight)
+			if (cp==selected)// || !cp.straight)
 				continue;
 			let cp1= controlPoints[j+1];
-			let pi= segSegInt(p1,p2,cp.position,cp1.position);
+//			let pi= segSegInt(p1,p2,cp.position,cp1.position);
+			let pi= trackTrackInt(selectedTrack,track,selected,cp2,
+			  cp,cp1);
 			if (pi.d==0 || pi.s<0 || pi.s>1 || pi.t<0 || pi.t>1)
 				continue;
+//			let e1= trackElevation(selectedTrack,selected,cp2,pi.s);
+//			let e2= trackElevation(track,cp,cp1,pi.t);
 			let e1= interpElevation(selected,cp2,pi.s);
 			let e2= interpElevation(cp,cp1,pi.t);
-			console.log("pi "+pi.x+" "+pi.y+" "+e1+" "+e2);
-			return;
+			de+= (e2-e1);
+			if (triArea(selected.position.x,selected.position.y,
+			  cp2.position.x,cp2.position.y,
+			  cp.position.x,cp.position.y) > 0)
+				grade-= cp.trackGrade;
+			else
+				grade+= cp.trackGrade;
+			dot+= selected.direction.dot(cp.direction);
+			n++;
+			console.log("crossing pi "+pi.x+" "+pi.y+" "+e1+" "+e2+
+			 " "+i+" "+j+" "+pi.s+" "+pi.t+" "+
+			 triArea(selected.position.x,selected.position.y,
+			  cp2.position.x,cp2.position.y,
+			  cp.position.x,cp.position.y)+" "+cp.grade+" "+dot);
+//			return;
 		}
 	}
+	if (n > 0) {
+		de/= n;
+		grade/= n;
+		dot/= n;
+		let offset=
+		  parseFloat(document.getElementById("crossingoffset").value);
+		de+= offset;
+		selected.position.z+= de;
+		cp2.position.z= selected.position.z +
+		  dot*grade*(cp2.distance-selected.distance);
+		let sn= Math.sqrt(1-dot*dot);
+		selected.dzdw= grade*sn;
+		cp2.dzdw= grade*sn;
+		calcTrack();
+		renderCanvas();
+		console.log("crossing de "+de+" "+grade+" "+offset+" "+
+		  dot+" "+sn+" "+selected.position.z+" "+cp2.position.z);
+	}
+}
+
+let trackElevation= function(track,cp0,cp1,a)
+{
+	let da= a*(cp1.distance-cp0.distance);
+	console.log("trackE "+da+" "+a);
+	let trackPoints= track.trackPoints;
+	let tp0= trackPoints[cp0.trackPoint];
+	for (let k=cp0.trackPoint+1; k<=cp1.trackPoint; k++) {
+		let tp1= trackPoints[k];
+		let d= tp1.distanceTo(tp0);
+		console.log(" "+da+" "+d);
+		if (d > da) {
+			a= da/d;
+			console.log(" "+a+" "+tp1.z+" "+tp0.z);
+			return a*tp1.z + (1-a)*tp0.z;
+		}
+		da-= d;
+		tp0= tp1;
+	}
+	console.log(" "+tp0.z);
+	return tp0.z;
+}
+
+let trackTrackInt= function(track1,track2,cp11,cp12,cp21,cp22)
+{
+	if (cp11.straight && cp21.straight)
+		return segSegInt(cp11.position,cp12.position,
+		  cp21.position,cp22.position);
+	let trackPoints1= track1.trackPoints;
+	let trackPoints2= track2.trackPoints;
+	let d1= 0;
+	for (let i=cp11.trackPoint; i<cp12.trackPoint; i++) {
+		let tp11= trackPoints1[i];
+		let tp12= trackPoints1[i+1];
+		let d2= 0;
+		for (let j=cp21.trackPoint; j<cp22.trackPoint; j++) {
+			let tp21= trackPoints2[j];
+			let tp22= trackPoints2[j+1];
+			let pi= segSegInt(tp11,tp12,tp21,tp22);
+			if (pi.d==0 || pi.s<0 || pi.s>1 || pi.t<0 || pi.t>1) {
+				d2+= tp22.distanceTo(tp21);
+				continue;
+			}
+			d1+= pi.s*tp12.distanceTo(tp11);
+			d2+= pi.t*tp22.distanceTo(tp21);
+			pi.s= d1/(cp12.distance-cp11.distance);
+			pi.t= d2/(cp22.distance-cp21.distance);
+			if (pi.s > 1)
+				pi.s= 1;
+			if (pi.t > 1)
+				pi.t= 1;
+			return pi;
+		}
+		d1+= tp12.distanceTo(tp11);
+	}
+	return { d:0 };
 }

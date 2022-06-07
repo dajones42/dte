@@ -172,6 +172,7 @@ let readTerrain= function(tile)
 	let size= 256*256*2;
 	tile.terrain= Buffer.alloc(size);
 	let path= routeDir+fspath.sep+"TILES"+fspath.sep+tile.filename+"_y.raw";
+	console.log("read "+path);
 	let fd= fs.openSync(path,"r");
 	if (!fd)
 		throw 'cannot open file '+path;
@@ -181,6 +182,7 @@ let readTerrain= function(tile)
 	path= routeDir+fspath.sep+"TILES"+fspath.sep+tile.filename+
 	  "_y.orig";
 	if (fs.existsSync(path)) {
+		console.log("read "+path);
 		fd= fs.openSync(path,"r");
 		if (!fd)
 			throw 'cannot open file '+path;
@@ -880,8 +882,62 @@ let writeTrackDB= function(tdb)
 			printItem(fd,table[i].value,table[i+1].children,2);
 		}
 		fs.writeSync(fd,"\t)\r\n",null,"utf16le");
+	} else if (tdb.items) {
+		let table= tdb.items;
+		fs.writeSync(fd,"\tTrItemTable ( "+tdb.items.length+
+		  "\r\n",null,"utf16le");
+		for (let i=0; i<tdb.items.length; i++) {
+			let item= tdb.items[i];
+			if (item.signal)
+				fs.writeSync(fd,"\t\tSignalItem (\r\n",
+				  null,"utf16le");
+			else
+				fs.writeSync(fd,"\t\tSidingItem (\r\n",
+				  null,"utf16le");
+			fs.writeSync(fd,"\t\t\tTrItemId ( "+item.id+" )\r\n",
+			  null,"utf16le");
+			fs.writeSync(fd,"\t\t\tTrItemSData ( "+
+			  item.dist.toFixed(4)+" 00000002 )\r\n",
+			  null,"utf16le");
+			fs.writeSync(fd,"\t\t\tTrItemRData ( "+
+			  item.x.toFixed(3)+" "+
+			  item.y.toFixed(3)+" "+
+			  item.z.toFixed(3)+" "+
+			  item.tx.toFixed(0)+" "+
+			  item.tz.toFixed(0)+" )\r\n",
+			  null,"utf16le");
+			if (item.signal) {
+				fs.writeSync(fd,"\t\t\tTrSignalType ( "+
+				  "00000000"+" "+
+				  (item.signal.dot>0?"0":"1")+" "+"1"+" "+
+				  item.signal.type+" )\r\n",
+				  null,"utf16le");
+				if (item.signal.linkId) {
+					fs.writeSync(fd,
+					  "\t\t\tTrSignalDirs ( 1\r\n",
+					  null,"utf16le");
+					fs.writeSync(fd,
+					  "\t\t\t\tTrSignalDir ( "+
+					  item.signal.linkId+" 1 "+
+					  item.signal.linkPin+" 0 )\r\n",
+					  null,"utf16le");
+					fs.writeSync(fd,"\t\t\t)\r\n",
+					  null,"utf16le");
+				}
+			} else {
+				fs.writeSync(fd,"\t\t\tSidingTrItemData ( "+
+				  (i%2==0?"00000000":"ffff0000")+" "+
+				  item.other+" )\r\n",
+				  null,"utf16le");
+				fs.writeSync(fd,"\t\t\tSidingName ( \""+
+				  item.name+"\" )\r\n",
+				  null,"utf16le");
+			}
+			fs.writeSync(fd,"\t\t)\r\n",null,"utf16le");
+		}
+		fs.writeSync(fd,"\t)\r\n",null,"utf16le");
 	}
-	fs.writeSync(fd,")",null,"utf16le");
+	fs.writeSync(fd,")\r\n",null,"utf16le");
 	fs.closeSync(fd);
 }
 
@@ -932,7 +988,7 @@ let addTiles= function()
 
 //	creates a .t file for the specified tile using imageFile as the
 //	name of the terrain texture.
-let createTFile= function(tile,imageFile)
+let createTFile= function(tile,imageFile,patchImages)
 {
 	let hexdigit= [
 		'0','1','4','5',
@@ -1095,7 +1151,10 @@ let createTFile= function(tile,imageFile)
 	n+= writeInt(2);
 	n+= writeInt(0);
 	n+= writeInt(1);
-	n+= writeFloat(32);
+	if (perTile)
+		n+= writeFloat(32*4);
+	else
+		n+= writeFloat(32);
 	n+= writeCodeLen(152,119);//terrain_shader
 	n+= writeUString("AlphaTerrain");
 	n+= writeCodeLen(153,46);//terrain_texslots
@@ -1125,7 +1184,7 @@ let createTFile= function(tile,imageFile)
 		for (let i=0; i<256; i++)
 			flags[i]= water.patchFlags[i];
 	}
-	if (tile.patchModels) {
+	if (tile.patchModels && patchImages) {
 		for (let i=0; i<tile.patchModels.length; i++) {
 			let tpm= tile.patchModels[i];
 			flags[tpm[0]*16+tpm[1]]|= 1;
@@ -1143,12 +1202,14 @@ let createTFile= function(tile,imageFile)
 			n+= writeFloat(64);// radius
 			n+= writeInt(0);
 			if (perTile) {
-				n+= writeFloat(j/16);
-				n+= writeFloat(1-i/16);
-				n+= writeFloat(.0625/16);
+				let e= 1/512;
+				let d= 510/512/16;
+				n+= writeFloat(e+j*d);
+				n+= writeFloat(1-e-i*d);
+				n+= writeFloat(d/16);
 				n+= writeFloat(0);
 				n+= writeFloat(0);
-				n+= writeFloat(-.0625/16);
+				n+= writeFloat(-d/16);
 			} else {
 				n+= writeFloat(.0001);
 				n+= writeFloat(.0001);
@@ -1342,7 +1403,7 @@ let writeWorldFile= function(tile)
 		fs.writeSync(fd,"\t\tUiD ( "+wfuid+" )\r\n",null,"utf16le");
 		fs.writeSync(fd,"\t\tTreeTexture ( "+treeData.texture+" )\r\n",
 		  null,"utf16le");
-		fs.writeSync(fd,"\t\tStaticFlags ( 00200100 )\r\n",
+		fs.writeSync(fd,"\t\tStaticFlags ( 00008000 )\r\n",
 		  null,"utf16le");
 		fs.writeSync(fd,"\t\tPosition ( "+
 		  model.x.toFixed(3)+" "+model.y.toFixed(3)+" "+
@@ -1371,6 +1432,30 @@ let writeWorldFile= function(tile)
 		  (treeData.sizew*treeData.sizew*Math.PI/4);
 		fs.writeSync(fd,"\t\tPopulation ( "+
 		  pop.toFixed(0)+" )\r\n",
+		  null,"utf16le");
+		fs.writeSync(fd,"\t\tVDbId ( 4294967294 )\r\n",
+		  null,"utf16le");
+		fs.writeSync(fd,"\t)\r\n",null,"utf16le");
+	}
+	let saveSiding= function(siding) {
+		fs.writeSync(fd,"\tSiding (\r\n",null,"utf16le");
+		fs.writeSync(fd,"\t\tUiD ( "+siding.wfuid+" )\r\n",
+		  null,"utf16le");
+		fs.writeSync(fd,"\t\tSidingData ( 00000000 )\r\n",
+		  null,"utf16le");
+		fs.writeSync(fd,"\t\tTrItemId ( 0 "+
+		  siding.trItem.id+" )\r\n",
+		  null,"utf16le");
+		fs.writeSync(fd,"\t\tTrItemId ( 0 "+
+		  (siding.trItem.id+1)+" )\r\n",
+		  null,"utf16le");
+		fs.writeSync(fd,"\t\tStaticFlags ( 00000000 )\r\n",
+		  null,"utf16le");
+		fs.writeSync(fd,"\t\tPosition ( "+
+		  siding.x.toFixed(3)+" "+siding.y.toFixed(3)+" "+
+		  siding.z.toFixed(3)+" )\r\n",
+		  null,"utf16le");
+		fs.writeSync(fd,"\t\tQDirection ( 0 0 0 1)\r\n",
 		  null,"utf16le");
 		fs.writeSync(fd,"\t\tVDbId ( 4294967294 )\r\n",
 		  null,"utf16le");
@@ -1452,14 +1537,9 @@ let writeWorldFile= function(tile)
 				console.log("bridge "+model.shape+" "+
 				  curve.len1+" "+curve.angle+" "+
 				  curve.radius+" "+curve.len2);
-			if (model.bridge)
-				fs.writeSync(fd,
-				  "\t\tStaticFlags ( 10100000 )\r\n",
-				  null,"utf16le");
-			else
-				fs.writeSync(fd,
-				  "\t\tStaticFlags ( 00100000 )\r\n",
-				  null,"utf16le");
+			fs.writeSync(fd,
+			  "\t\tStaticFlags ( 00100000 )\r\n",
+			  null,"utf16le");
 			fs.writeSync(fd,"\t\tPosition ( "+
 			  model.section.x.toFixed(3)+" "+
 			  model.section.y.toFixed(3)+" "+
@@ -1481,13 +1561,45 @@ let writeWorldFile= function(tile)
 			fs.writeSync(fd,"\t\tVDbId ( 4294967294 )\r\n",
 			  null,"utf16le");
 			fs.writeSync(fd,"\t)\r\n",null,"utf16le");
+		} else if (model.signal) {
+			fs.writeSync(fd,"\tSignal (\r\n",null,"utf16le");
+			fs.writeSync(fd,"\t\tUiD ( "+model.wfuid+" )\r\n",
+			  null,"utf16le");
+			fs.writeSync(fd,"\t\tFileName ( "+model.filename+
+			  " )\r\n",null,"utf16le");
+			fs.writeSync(fd,"\t\tPosition ( "+
+			  model.x.toFixed(3)+" "+model.y.toFixed(3)+" "+
+			  model.z.toFixed(3)+" )\r\n",
+			  null,"utf16le");
+			let q= new THREE.Quaternion();
+			let e= new THREE.Euler(-model.ax,-model.ay,
+			  model.az);
+			q.setFromEuler(e);
+			fs.writeSync(fd,"\t\tQDirection ( "+
+			  q.x.toFixed(5)+" "+q.y.toFixed(5)+" "+
+			  q.z.toFixed(5)+" "+q.w.toFixed(5)+" )\r\n",
+			  null,"utf16le");
+			fs.writeSync(fd,"\t\tVDbId ( 4294967294 )\r\n",
+			  null,"utf16le");
+			fs.writeSync(fd,"\t\tSignalSubObj ( 00000001 )\r\n",
+			  null,"utf16le");
+			fs.writeSync(fd,"\t\tSignalUnits ( 1\r\n",
+			  null,"utf16le");
+			fs.writeSync(fd,"\t\t\tSignalUnit ( 0\r\n",
+			  null,"utf16le");
+			fs.writeSync(fd,"\t\t\t\tTrItemId ( 0 "+
+			  model.signal.itemId+" )\r\n",
+			  null,"utf16le");
+			fs.writeSync(fd,"\t\t\t)\r\n",null,"utf16le");
+			fs.writeSync(fd,"\t\t)\r\n",null,"utf16le");
+			fs.writeSync(fd,"\t)\r\n",null,"utf16le");
 		} else if (model.filename) {
 			fs.writeSync(fd,"\tStatic (\r\n",null,"utf16le");
 			fs.writeSync(fd,"\t\tUiD ( "+model.wfuid+" )\r\n",
 			  null,"utf16le");
 			fs.writeSync(fd,"\t\tFileName ( "+model.filename+
 			  " )\r\n",null,"utf16le");
-			fs.writeSync(fd,"\t\tStaticFlags ( 00000100 )\r\n",
+			fs.writeSync(fd,"\t\tStaticFlags ( 00010100 )\r\n",
 			  null,"utf16le");
 			fs.writeSync(fd,"\t\tPosition ( "+
 			  model.x.toFixed(3)+" "+model.y.toFixed(3)+" "+
@@ -1508,6 +1620,8 @@ let writeWorldFile= function(tile)
 			saveForest(model,false,model.forest);
 			if (model.forest.type2)
 				saveForest(model,true,model.forest.type2);
+		} else if (model.trItem) {
+			saveSiding(model);
 		} else {
 			fs.writeSync(fd,"\tTrackObj (\r\n",null,"utf16le");
 			fs.writeSync(fd,"\t\tUiD ( "+model.wfuid+" )\r\n",
@@ -1565,7 +1679,7 @@ let writeWorldFile= function(tile)
 		  null,"utf16le");
 		fs.writeSync(fd,"\t\tFileName ( "+filename+
 		  " )\r\n",null,"utf16le");
-		fs.writeSync(fd,"\t\tStaticFlags ( 00000100 )\r\n",
+		fs.writeSync(fd,"\t\tStaticFlags ( 00040100 )\r\n",
 		  null,"utf16le");
 		fs.writeSync(fd,"\t\tPosition ( 0 0 0 )\r\n",
 		  null,"utf16le");
@@ -1782,9 +1896,10 @@ let saveToRoute= function()
 //	console.log("next "+nextSection+" "+nextPath);
 	for (let i=0; i<tracks.length; i++) {
 		let track= tracks[i];
-		if (track.type == "water" || track.type == "road" ||
+		if (track.type == "water" ||
+		  track.type == "road" || track.type == "road1" ||
 		  track.type == "dirtroad" || track.type == "dirtroad1" ||
-		  track.type=="contour")
+		  track.type=="contour" || track.type=="paint")
 			continue;
 		let dynTrackPoints= track.dynTrackPoints;
 		for (let j=0; j<dynTrackPoints.length-1; j++) {
@@ -1884,13 +1999,14 @@ let saveToRoute= function()
 		let wftz= centerTZ + Math.round(y/2048);
 		let tile= findTile(wftx,wftz);
 		let uid= tile.nextUid;
-		if (point.bridge && point.bridge!="turntable") {
+		if (point.bridge && point.bridge!="turntable" &&
+		  point.bridge!="norails") {
 			let filename=
 			  ((point.bridge=="ptbd" || point.bridge=="tdbd") ?
 			  "brdgtrackbd" : "brdgtracktd") +
 			  curve.shapeID.toFixed(0) + ".s";
 			addModel(filename,x,y,z,dir.x,dir.y,curve.elevation);
-		} else {
+		} else if (!point.dontAdd) {
 			tile.nextUid++;
 			tile.models.push(point);
 		}
@@ -1994,7 +2110,7 @@ let saveToRoute= function()
 		if (addToTrackDB)
 			setNextUid(tiles[i]);
 	}
-	let tdb= { nodes: [], serial: trackDB.serial+1 };
+	let tdb= { nodes: [], serial: trackDB.serial+1, items: [] };
 	let nextNodeID= 1;
 	// add end node to tdb
 	let addEndNode= function(point,vnode,end) {
@@ -2005,6 +2121,56 @@ let saveToRoute= function()
 		node.pins[0].end= end;
 		setUid(node,point,0);
 		return node;
+	}
+	let addItems= function(node,cp,dp1,dp2) {
+		if (!node.itemRefs)
+			node.itemRefs= [];
+		let id= tdb.items.length;
+		let tx= centerTX + Math.round(dp1.position.x/2048);
+		let tz= centerTZ + Math.round(dp1.position.y/2048);
+		let x= dp1.position.x - 2048*(tx-centerTX);;
+		let y= dp1.elevation;
+		let z= dp1.position.y - 2048*(tz-centerTZ);;
+		let item1= { id:id, x:x, y:y, z:z, tx:tx, tz:tz,
+		  dist:dp1.distance, name:cp.name, other:id+1 };
+		tx= centerTX + Math.round(dp2.position.x/2048);
+		tz= centerTZ + Math.round(dp2.position.y/2048);
+		x= dp2.position.x - 2048*(tx-centerTX);;
+		y= dp2.elevation;
+		z= dp2.position.y - 2048*(tz-centerTZ);;
+		let item2= { id:id+1, x:x, y:y, z:z, tx:tx, tz:tz,
+		  dist:dp2.distance, name:cp.name, other:id };
+		node.itemRefs.push(id);
+		node.itemRefs.push(id+1);
+		tdb.items.push(item1);
+		tdb.items.push(item2);
+		let siding= { trItem: item1 };
+		siding.wftx= centerTX + Math.round(cp.position.x/2048);
+		siding.wftz= centerTZ + Math.round(cp.position.y/2048);
+		siding.x= cp.position.x - 2048*(siding.wftx-centerTX);
+		siding.y= cp.position.z;
+		siding.z= cp.position.y - 2048*(siding.wftz-centerTZ);
+		let tile= findTile(siding.wftx,siding.wftz);
+		if (tile) {
+			siding.wfuid= tile.nextUid++;
+			tile.models.push(siding);
+		}
+	}
+	let addSignalItem= function(node,dp) {
+		if (!node.itemRefs)
+			node.itemRefs= [];
+		let id= tdb.items.length;
+		let tx= centerTX + Math.round(dp.position.x/2048);
+		let tz= centerTZ + Math.round(dp.position.y/2048);
+		let x= dp.position.x - 2048*(tx-centerTX);;
+		let y= dp.elevation;
+		let z= dp.position.y - 2048*(tz-centerTZ);;
+		let item= { id:id, x:x, y:y, z:z, tx:tx, tz:tz,
+		  dist:dp.distance, signal:dp.signal };
+		node.itemRefs.push(id);
+		tdb.items.push(item);
+		dp.signal.itemId= id;
+		console.log("signalitem "+id);
 	}
 	for (let i=0; i<switches.length; i++) {
 		let sw= switches[i];
@@ -2018,15 +2184,24 @@ let saveToRoute= function()
 		if (tile) {
 			node.wfuid= tile.nextUid++;
 			tile.models.push(node);
+			if (sw.shapeID==32246 || sw.shapeID==32247) {
+				let filename= saveSwitchExt(sw,node.id);
+				let p= sw.points[0].position;
+				let dir= sw.points[0].direction;
+				addModel(filename,p.x,p.y,p.z,-dir.x,-dir.y,
+				  sw.grade);
+			}
 		}
 		addPins(node,3);
 		sw.trackNode= node;
 	}
+	matchSignals();
 	for (let i=0; i<tracks.length; i++) {
 		let track= tracks[i];
-		if (track.type == "water" || track.type == "road" ||
+		if (track.type == "water" ||
+		  track.type == "road" || track.type == "road1" ||
 		  track.type == "dirtroad" || track.type == "dirtroad1" ||
-		  track.type=="contour")
+		  track.type=="contour" || track.type=="paint")
 			continue;
 		let dynTrackPoints= track.dynTrackPoints;
 		let controlPoints= track.controlPoints;
@@ -2054,7 +2229,14 @@ let saveToRoute= function()
 				enode.otherEndNode= cp.endNode;
 		}
 		for (let j=0; j<dynTrackPoints.length-1; j++) {
-			addDynTrackSections(node,dynTrackPoints[j]);
+			let dp= dynTrackPoints[j];
+			addDynTrackSections(node,dp);
+			if (j>0 && dp.controlPoint && dp.controlPoint.name &&
+			  !dp.controlPoint.name.startsWith("signal"))
+				addItems(node,dp.controlPoint,
+				  dynTrackPoints[j-1],dynTrackPoints[j+1]);
+			if (j>0 && dp.signal)
+				addSignalItem(node,dp);
 		}
 		cp= controlPoints[controlPoints.length-1];
 		if (cp.sw) {
@@ -2076,7 +2258,8 @@ let saveToRoute= function()
 	}
 	for (let i=0; i<tracks.length; i++) {
 		let track= tracks[i];
-		if (track.type == "water" || track.type=="contour")
+		if (track.type == "water" || track.type=="contour" ||
+		  track.type=="paint")
 			continue;
 		let controlPoints= track.controlPoints;
 		let j1= 0;
@@ -2087,7 +2270,8 @@ let saveToRoute= function()
 				if (!prevBridge && j>0)
 					addBridgeEndModel(track,cp,true);
 				prevBridge= cp.bridge!="turntable";
-			} else if (prevBridge) {
+			} else if (prevBridge &&
+			  j<controlPoints.length-1) {
 				addBridgeEndModel(track,cp,false);
 				prevBridge= false;
 			}
@@ -2102,9 +2286,11 @@ let saveToRoute= function()
 					j1++;
 					cp1= controlPoints[j1];
 				}
-				addTrestle(track,cp,cp1)
+				addTrestle(track,cp,cp1,
+				  j1==controlPoints.length-1)
 			}
-			if (cp.model || cp.forest) {
+			if ((cp.model && cp.model.filename.length>0) ||
+			  cp.forest) {
 				let static= cp.forest ?
 				  { forest: cp.forest } :
 				  { filename: cp.model.filename };
@@ -2124,6 +2310,8 @@ let saveToRoute= function()
 				static.ax= -cp.cpGrade;
 				static.ay= Math.PI/2-angle;
 				static.az= 0;
+				if (!cp.forest && cp.model.signal)
+					static.signal= cp.model.signal;
 				let tile= findTile(static.wftx,static.wftz);
 				if (tile) {
 					static.wfuid= tile.nextUid++;
@@ -2133,6 +2321,22 @@ let saveToRoute= function()
 				}
 			}
 		}
+	}
+	for (let i=0; i<tracks.length; i++) {
+		let track= tracks[i];
+		if (track.type != "water")
+			continue;
+//		let static= makeWaterModel(track);
+//		let tile= findTile(static.wftx,static.wftz);
+//		if (tile) {
+//			static.wfuid= tile.nextUid++;
+//			tile.models.push(static);
+//		}
+	}
+	for (let i=0; i<switches.length; i++) {
+		let sw= switches[i];
+		if (sw.shapeID == 39829)
+			sw.trackNode.shape= 39830;//swap mainroute
 	}
 //	console.log("nextNodeID "+nextNodeID);
 	for (let i=0; i<tiles.length; i++) {
@@ -2327,18 +2531,23 @@ let saveTileImage= function()
 	canvas.height= sz;
 	let cu= 2048*(tx-centerTX);
 	let cv= 2048*(tz-centerTZ);
-	let scale= sz/2048;
+	let scale= sz/2048 * 510/512;
 	console.log("save tile image "+tx+" "+tz+" "+cu+" "+cv+" "+
 	  tile.filename);
-	let width= canvas.width;
-	let height= canvas.height;
+	let width= canvas.width * 510/512;
+	let height= canvas.height * 510/512;
 	let context= canvas.getContext("2d");
 	context.fillStyle= "lightgreen";
 	context.fillRect(0,0,canvas.width,canvas.height);
+	let paint= true;
 	for (let i=0; i<backgroundTiles.length; i++) {
 		let bgt= backgroundTiles[i];
 		if (!bgt.image)
 			continue;
+		if (bgt.zoom==20 && paint) {
+			paintBackground(context,scale,width,height,cu,cv);
+			paint= false;
+		}
 		let u= (bgt.u-cu)*scale + width/2;
 		let v= height/2 - (bgt.v-cv)*scale;
 		let w= bgt.image.width;
@@ -2347,9 +2556,19 @@ let saveTileImage= function()
 		let sv= scale*bgt.hgt/h;
 		let skew= bgt.skew/bgt.wid*sv;
 		context.setTransform(su,0,skew,sv,u,v);
-		context.drawImage(bgt.image,0,0,w,h,-w/2,-h/2,w,h);
+		let img= bgt.image;
+		if (bgt.zoom == 20) {
+			if (!bgt.hydroImage)
+				bgt.hydroImage= fixHydroImage(img);
+			img= bgt.hydroImage;
+		}
+		context.drawImage(img,0,0,w,h,-w/2,-h/2,w,h);
 		context.setTransform(1,0,0,1,0,0);
 //		console.log("bgt "+bgt.u+" "+bgt.v+" "+w+" "+h+" "+su+" "+sv);
+	}
+	if (paint) {
+		paintBackground(context,scale,width,height,cu,cv);
+		paint= false;
 	}
 	let badColor= function(pixel) {
 		let r= pixel[0];
@@ -2407,10 +2626,11 @@ let saveTileImage= function()
 	let buf= Buffer.from(dataUrl.substr(start+6),"base64");
 	let path= routeDir+fspath.sep+'TERRTEX'+fspath.sep+"t"+tile.filename+
 	  ".png";
-//	console.log(path);
+	console.log(path);
 	fs.writeFileSync(path,buf);
-	createTFile(tile,"t"+tile.filename+".ace");
-	if (tile.patchModels) {
+	sz= document.getElementById("patchimagesize").value;
+	createTFile(tile,"t"+tile.filename+".ace",sz>0);
+	if (sz>0 && tile.patchModels) {
 		let mtcanvas= document.createElement("canvas");
 		mtcanvas.width= 256;
 		mtcanvas.height= 256;
@@ -2426,23 +2646,30 @@ let saveTileImage= function()
 let savePatchImage= function(tile,tpm,mtdata)
 {
 	let canvas= document.createElement("canvas");
-	let sz= document.getElementById("tileimagesize").value;
+	let sz= document.getElementById("patchimagesize").value;
+	if (sz == 0)
+		return;
 	canvas.width= sz;
 	canvas.height= sz;
 	let cu= 2048*(tile.x-centerTX) - 1024+64 + tpm[1]*128;
 	let cv= 2048*(tile.z-centerTZ) + 1024-64 - tpm[0]*128;
 	let scale= sz/(2048/16);
-//	console.log("save patch image "+tile.x+" "+tile.z+" "+cu+" "+cv+" "+
-//	  mtdata.length);
+	console.log("save patch image "+tile.x+" "+tile.z+" "+cu+" "+cv+" "+
+	  mtdata.length);
 	let width= canvas.width;
 	let height= canvas.height;
 	let context= canvas.getContext("2d");
 	context.fillStyle= "lightgreen";
 	context.fillRect(0,0,canvas.width,canvas.height);
+	let paint= true;
 	for (let i=0; i<backgroundTiles.length; i++) {
 		let bgt= backgroundTiles[i];
 		if (!bgt.image)
 			continue;
+		if (bgt.zoom==20 && paint) {
+			paintBackground(context,scale,width,height,cu,cv);
+			paint= false;
+		}
 		let u= (bgt.u-cu)*scale + width/2;
 		let v= height/2 - (bgt.v-cv)*scale;
 		let w= bgt.image.width;
@@ -2451,9 +2678,16 @@ let savePatchImage= function(tile,tpm,mtdata)
 		let sv= scale*bgt.hgt/h;
 		let skew= bgt.skew/bgt.wid*sv;
 		context.setTransform(su,0,skew,sv,u,v);
-		context.drawImage(bgt.image,0,0,w,h,-w/2,-h/2,w,h);
+		let img= bgt.image;
+		if (bgt.hydroImage)
+			img= bgt.hydroImage;
+		context.drawImage(img,0,0,w,h,-w/2,-h/2,w,h);
 		context.setTransform(1,0,0,1,0,0);
 //		console.log("bgt "+bgt.u+" "+bgt.v+" "+w+" "+h+" "+su+" "+sv);
+	}
+	if (paint) {
+		paintBackground(context,scale,width,height,cu,cv);
+		paint= false;
 	}
 	for (let i=0; i<sz; i+=256) {
 		for (let j=0; j<sz; j+=256) {
@@ -2487,6 +2721,7 @@ let savePatchImage= function(tile,tpm,mtdata)
 	  yard: { width: 2.75, fill: "#666", alpha: .7 },
 	  main: { width: 2.75, fill: "#666", alpha: .7 },
 	  road: { width: 4, fill: "#666", alpha: 1 },
+	  road1: { width: 4, fill: "#666", alpha: 1 },
 	  dirtroad: { width: 4, fill: "#765", alpha: .9 },
 	  dirtroad1: { width: 2.7, fill: "#765", alpha: .9 }
 	};
@@ -2505,7 +2740,8 @@ let savePatchImage= function(tile,tpm,mtdata)
 	}
 	for (let i=0; i<tracks.length; i++) {
 		let track= tracks[i];
-		if (track.type == "water" || track.type=="contour")
+		if (track.type == "water" || track.type=="contour" ||
+		  track.type=="paint")
 			continue;
 		setProfile(track.type);
 		let controlPoints= track.controlPoints;
@@ -2625,6 +2861,62 @@ let savePatchImage= function(tile,tpm,mtdata)
 	let path= routeDir+fspath.sep+'TEXTURES'+fspath.sep+"t"+tile.filename+
 	  "_"+tpm[0]+"_"+tpm[1]+".png";
 	fs.writeFileSync(path,buf);
+}
+
+let fixHydroImage= function(image)
+{
+	console.log("fixhydro");
+	let hydroCanvas= document.createElement("canvas");
+	hydroCanvas.width= 256;
+	hydroCanvas.height= 256;
+	let context= hydroCanvas.getContext("2d");
+	context.clearRect(0,0,256,256);
+	context.drawImage(image,0,0);
+	let idata= context.getImageData(0,0,256,256);
+	let data= idata.data;
+	let countBox= function(i,j,offset,sz) {
+		let n= 0;
+		for (let di=-sz; di<=sz; di++) {
+			let i1= i+di;
+			for (let dj=-sz; dj<=sz; dj++) {
+				let j1= j+dj;
+				let k1= 4*(j1+256*i1) + offset;
+				if (i1<0 || i1>255 || j1<0 || j1>255 ||
+				  data[k1]==255)
+					n++;
+			}
+		}
+		return n;
+	}
+//	for (let i=0; i<256; i++) {
+//		for (let j=0; j<256; j++) {
+//			let n= countBox(i,j,3,2);
+//			let k= 4*(j+256*i);
+//			data[k+1]= n==25 ? 255 : 0;
+//		}
+//	}
+	for (let i=0; i<256; i++) {
+		for (let j=0; j<256; j++) {
+			let n= countBox(i,j,3,1);
+			let k= 4*(j+256*i);
+			if (n == 9)
+				data[k]= 255;
+			else if (n==8 && data[k+3]==255)
+				data[k]= 170;
+			else if (n==7 && data[k+3]==255)
+				data[k]= 85;
+			else
+				data[k]= 0
+		}
+	}
+	for (let k=0; k<data.length; k+=4) {
+		data[k+3]= data[k];
+		data[k]= 36;
+		data[k+1]= 56;
+		data[k+2]= 47;
+	}
+	context.putImageData(idata,0,0);
+	return hydroCanvas;
 }
 
 let makeQuadTree= function()
@@ -2775,6 +3067,7 @@ let saveTileCutFill= function()
 	let tile= findTile(tx,tz);
 	if (!tile)
 		return;
+	let patchImages= document.getElementById("patchimagesize").value>0;
 	let path= routeDir+fspath.sep+"TILES"+fspath.sep+tile.filename;
 	tile.patchModels= [];
 	calcTrackPointElevations();
@@ -2792,7 +3085,7 @@ let saveTileCutFill= function()
 			  " "+j0+" "+countPatchTrackPoints(tile,i0,j0));
 			let model= makePatchModel(tile,i0,j0);
 			console.log(" polys "+model.polygons.length);
-			let nextID= 1024;
+			let nextID= 3000;
 			let fill= makeCutFillModel(tile,i0,j0,false,nextID,
 			  faces,false);
 			console.log(" fill polys "+fill.polygons.length);
@@ -2801,6 +3094,7 @@ let saveTileCutFill= function()
 			  faces,false);
 			for (let k=0; k<cut.length; k++)
 				nextID+= cut[k].length;
+			console.log(" cut csgs "+cut.length);
 			let opCut= makeCutFillModel(tile,i0,j0,true,nextID,
 			  faces,true);
 			console.log(" opcut csgs "+opCut.length);
@@ -2822,10 +3116,16 @@ let saveTileCutFill= function()
 //				model= model.union(fill);
 //			console.log(" polys after fill "+model.polygons.length);
 			model= cutFillBySquare(i0,j0,model,cut,fbox,tx,tz,
-			  opCut);
+			  opCut,patchImages);
 			console.log(" polys "+model.polygons.length);
-			writeCsgObj(ppath+".obj",model,i,j);
-			tile.patchModels.push([i,j]);
+			if (!patchImages)
+//				adjustPatchPolygons(model);
+				adjustPatchPolygons1(model,tile);
+			if (tile.patchColors && tile.patchColors[i*16+j])
+				assignPatchColors(model,
+				  tile.patchColors[i*16+j],i0,j0);
+			if (writeCsgObj(ppath+".obj",model,i,j,patchImages))
+				tile.patchModels.push([i,j]);
 //			for (let k=0; k<cut.polygons.length; k++)
 //				merge.polygons.push(cut.polygons[k]);
 //			for (let k=0; k<fill.polygons.length; k++)
@@ -2842,7 +3142,7 @@ let saveTileCutFill= function()
 //			return;
 		}
 	}
-	createTFile(tile,"t"+tile.filename+".ace");
+	createTFile(tile,"t"+tile.filename+".ace",patchImages);
 	console.log("done");
 }
 
@@ -2857,7 +3157,8 @@ let countPatchTrackPoints= function(tile,i0,j0)
 	let n= 0;
 	for (let i=0; i<tracks.length; i++) {
 		let track= tracks[i];
-		if (track.type == "water" || track.type=="contour")
+		if (track.type == "water" || track.type=="contour" ||
+		  track.type=="paint")
 			continue;
 		track.nearPatch= false;
 		let m= 0;
@@ -2909,8 +3210,9 @@ let makePatchModel= function(tile,i0,j0)
 			x= 8*(j0+j-128);
 			y= 8*(128-i-i0);
 			let z= getTerrainElevation(i+i0,j+j0,tile,true);
-			verts.push(new CSG.Vertex(new CSG.Vector(x,y,z),
-			  normal));
+			let v= new CSG.Vertex(new CSG.Vector(x,y,z),normal);
+			v.ij= { i:i+i0, j:j+j0 };
+			verts.push(v);
 		}
 	}
 	verts.push(new CSG.Vertex(new CSG.Vector(8*(j0-128),8*(128-i0),0),
@@ -2980,27 +3282,31 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 	let profiles = {
 	  branch: {
 		cut: { depth: .3, width: 3.2, slope: 1 },
-		fill: { depth: 0, width: 2.75, slope: 1.5 },
+		fill: { depth: 0, width: 2.75, slope: 1.5, surface: 2003 },
 	  },
 	  yard: {
 		cut: { depth: 0, width: 5, slope: 1 },
-		fill: { depth: 0, width: 2.75, slope: 1.5 },
+		fill: { depth: 0, width: 2.75, slope: 1.5, surface: 2003 },
 	  },
 	  main: {
 		cut: { depth: 1, width: 3.2, slope: 1 },
-		fill: { depth: 0, width: 2.75, slope: 1.5 },
+		fill: { depth: 0, width: 2.75, slope: 1.5, surface: 2003 },
 	  },
 	  road: {
 		cut: { depth: 1, width: 6, slope: 1 },
-		fill: { depth: 0, width: 5, slope: 1.5 },
+		fill: { depth: 0, width: 5, slope: 1.5, surface: 2001 },
+	  },
+	  road1: {
+		cut: { depth: 1, width: 6, slope: 1 },
+		fill: { depth: 0, width: 5, slope: 1.2, surface: 2001 },
 	  },
 	  dirtroad: {
 		cut: { depth: .5, width: 6, slope: 1 },
-		fill: { depth: 0, width: 5, slope: 1.5 },
+		fill: { depth: 0, width: 5, slope: 1.5, surface: 2002 },
 	  },
 	  dirtroad1: {
 		cut: { depth: .3, width: 3, slope: 1 },
-		fill: { depth: 0, width: 2.5, slope: 1.5 },
+		fill: { depth: 0, width: 2.5, slope: 1.5, surface: 2002 },
 	  }
 	};
 	let profile= profiles.branch;
@@ -3017,7 +3323,10 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 //	console.log("min "+(minX-x0)+" "+(maxX-x0)+" "+(minY-z0)+" "+(maxY-z0));
 	let minZ= 1e10;
 	let maxZ= -1e10;
-	let addVerts= function(p,dx,dy) {
+	let trackPid= pid0;
+//	let endPid= cut ? trackPid : 2000;
+	let endPid= 2000;
+	let addVerts= function(p,dx,dy,dzdw) {
 //		if (!cut)
 //		console.log("addverts "+verts.length+" "+
 //		  p.x+" "+p.y+" "+p.z+" "+dx+" "+dy);
@@ -3037,56 +3346,63 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 		verts.push(new CSG.Vertex(new CSG.Vector(
 		  [x-m2*dx,y-m2*dy,z+dz]),normal));
 		verts.push(new CSG.Vertex(new CSG.Vector(
-		  [x-m1*dx,y-m1*dy,z]),normal));
+		  [x-m1*dx,y-m1*dy,z-m1*dzdw]),normal));
 		verts.push(new CSG.Vertex(new CSG.Vector(
-		  [x+m1*dx,y+m1*dy,z]),normal));
+		  [x+m1*dx,y+m1*dy,z+m1*dzdw]),normal));
 		verts.push(new CSG.Vertex(new CSG.Vector(
 		  [x+m2*dx,y+m2*dy,z+dz]),normal));
 		if (minZ > z)
 			minZ= z;
-		if (maxZ < p.z)
+		if (maxZ < z)
 			maxZ= z;
 	}
-	let addPoly= function(i1,i2,i3,assignPID) {
+	let addPoly= function(i1,i2,i3,pid) {
 //		console.log("addpoly "+verts.length+" "+polys.length+
 //		 " "+i1+" "+i2+" "+i3);
-		let poly=  new CSG.Polygon([verts[i1],verts[i2],verts[i3]],
-		  (assignPID?pid0+polys.length:0));
+		let poly=  new CSG.Polygon([verts[i1],verts[i2],verts[i3]],pid);
 		polys.push(poly);
 //		if (assignPID && poly.plane.normal.z<0 && !cut)
 //			console.log("negpoly "+verts.length+" "+polys.length+
 //			  " "+i1+" "+i2+" "+i3+" "+poly.plane.normal.z);
 	}
-	let addPolys= function() {
+	let addPolys= function(pid,point,perp) {
 		let m= verts.length-8;
 		if (cut) {
-			addPoly(m,m+5,m+4,true);
-			addPoly(m,m+1,m+5,true);
-			addPoly(m+1,m+6,m+5,true);
-			addPoly(m+1,m+2,m+6,true);
-			addPoly(m+2,m+7,m+6,true);
-			addPoly(m+2,m+3,m+7,true);
-			addPoly(m,m+4,m+7,false);
-			addPoly(m,m+7,m+3,false);
+			addPoly(m,m+5,m+4,pid);
+			addPoly(m,m+1,m+5,pid);
+			addPoly(m+1,m+6,m+5,pid);
+			addPoly(m+1,m+2,m+6,pid);
+			addPoly(m+2,m+7,m+6,pid);
+			addPoly(m+2,m+3,m+7,pid);
+			addPoly(m,m+4,m+7,0);
+			addPoly(m,m+7,m+3,0);
 		} else {
-			addPoly(m,m+4,m+1,true);
-			addPoly(m+1,m+4,m+5,true);
-			addPoly(m+1,m+5,m+2,true);
-			addPoly(m+2,m+5,m+6,true);
-			addPoly(m+2,m+6,m+3,true);
-			addPoly(m+3,m+6,m+7,true);
-			addPoly(m,m+3,m+7,false);
-			addPoly(m,m+7,m+4,false);
+			let surface= pid;
+			if (point && profile.fill.surface) {
+				surface= {
+				  point: { x:point.x-x0, y:point.y-z0 },
+				  perp: perp, profile: profile.fill,
+				  distance: 0
+				};
+			}
+			addPoly(m,m+4,m+1,pid);
+			addPoly(m+1,m+4,m+5,pid);
+			addPoly(m+1,m+5,m+2,surface);
+			addPoly(m+2,m+5,m+6,surface);
+			addPoly(m+2,m+6,m+3,pid);
+			addPoly(m+3,m+6,m+7,pid);
+			addPoly(m,m+3,m+7,0);
+			addPoly(m,m+7,m+4,0);
 		}
 	}
-	let addEnd= function(flip,assignPID) {
+	let addEnd= function(flip,pid) {
 		let m= verts.length-4;
 		if ((cut && !flip) || (!cut && flip)) {
-			addPoly(m,m+2,m+1,assignPID);
-			addPoly(m,m+3,m+2,assignPID);
+			addPoly(m,m+2,m+1,pid);
+			addPoly(m,m+3,m+2,pid);
 		} else {
-			addPoly(m,m+1,m+2,assignPID);
-			addPoly(m,m+2,m+3,assignPID);
+			addPoly(m,m+1,m+2,pid);
+			addPoly(m,m+2,m+3,pid);
 		}
 	}
 	let saveCutCSGUnion= function() {
@@ -3114,6 +3430,8 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 		let y= point.position.y;
 		let dx= point.direction.x;
 		let dy= point.direction.y;
+		let px= -dy;
+		let py= dx;
 		let w= point.model.size.w/2;
 		let h= point.model.size.h/2;
 		let r= Math.sqrt(w*w+h*h)+10;
@@ -3125,8 +3443,6 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 		x= x-x0;
 		y= y-z0;
 		let z= point.position.z;
-		let px= -dy;
-		let py= dx;
 //		console.log("model "+x+" "+y+" "+dx+" "+dy+" "+w+" "+h);
 		const depth= 10;
 		let slope= cut ? 3 : 2;
@@ -3144,7 +3460,7 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 		  [x-w*dx+h*px,y-w*dy+h*py,z]),normal));
 		verts.push(new CSG.Vertex(new CSG.Vector(
 		  [x-w2*dx+h2*px,y-w2*dy+h2*py,z+dz]),normal));
-		addEnd(false,true);
+		addEnd(false,trackPid);
 		verts.push(new CSG.Vertex(new CSG.Vector(
 		  [x+w2*dx-h2*px,y+w2*dy-h2*py,z+dz]),normal));
 		verts.push(new CSG.Vertex(new CSG.Vector(
@@ -3153,8 +3469,8 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 		  [x+w*dx+h*px,y+w*dy+h*py,z]),normal));
 		verts.push(new CSG.Vertex(new CSG.Vector(
 		  [x+w2*dx+h2*px,y+w2*dy+h2*py,z+dz]),normal));
-		addPolys();
-		addEnd(true,true);
+		addPolys(trackPid,null,null);
+		addEnd(true,trackPid);
 //		for (let i=verts.length-8; i<verts.length; i++) {
 //			let v= verts[i];
 //			console.log("v "+i+" "+v.pos.x+" "+v.pos.y+" "+v.pos.z);
@@ -3166,7 +3482,7 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 		let prof= cut ? profile.cut : profile.fill;
 		let x= point.position.x;
 		let y= point.position.y;
-		let r= radius+prof.width;
+		let r= radius+prof.width+1;
 		if ((x-r<minX && x+r<minX) ||
 		  (x-r>maxX && x+r>maxX) ||
 		  (y-r<minY && y+r<minY) ||
@@ -3176,14 +3492,15 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 		y= y-z0;
 		let z= point.position.z;
 		if (cut)
-			z-= 2;
+			z-= 3;
 		else
 			z+= .1;
 		const depth= 10;
-		let slope= cut ? 3 : 2;
-		let r1= radius-.5;
+		let slope= cut ? .1 : 2;
+		let r1= radius+.5;
 		let r2= r + depth*slope;
 		let dz= cut ? depth : -depth;
+		let pid= cut ? 0 : trackPid;
 //		console.log("turntable "+x+" "+y+" "+radius);
 		for (let i=0; i<=360; i+=10) {
 			let a= i*Math.PI/180;
@@ -3193,25 +3510,35 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 			  [x+r2*cs,y+r2*sn,z+dz]),normal));
 			verts.push(new CSG.Vertex(new CSG.Vector(
 			  [x+r*cs,y+r*sn,z]),normal));
-			verts.push(new CSG.Vertex(new CSG.Vector(
-			  [x+r1*cs,y+r1*sn,z]),normal));
-			if (cut) 
+			if (cut) {
 				verts.push(new CSG.Vertex(new CSG.Vector(
 				  [x,y,z]),normal));
-			else
+				verts.push(new CSG.Vertex(new CSG.Vector(
+				  [x,y,z+dz]),normal));
+			} else {
+				verts.push(new CSG.Vertex(new CSG.Vector(
+				  [x+r1*cs,y+r1*sn,z]),normal));
 				verts.push(new CSG.Vertex(new CSG.Vector(
 				  [x+r1*cs,y+r1*sn,z+dz]),normal));
+			}
 			if (i > 0)
-				addPolys();
+				addPolys(pid,null,null);
 		}
 		saveCutCSGUnion();
 	}
 	let noverpass= 0;
+	if (overpass)
+		trackPid= 2000;
 	for (let i=0; i<tracks.length; i++) {
 		let track= tracks[i];
-		if (track.type == "water" || track.type=="contour")
+		if (track.type == "water" || track.type=="contour" ||
+		  track.type=="paint")
 			continue;
 		setProfile(track.type);
+		if (!overpass)
+			trackPid++;
+//		if (cut)
+//			endPid= trackPid;
 		let controlPoints= track.controlPoints;
 		let trackPoints= track.trackPoints;
 		for (let j=0; j<controlPoints.length-1; j++) {
@@ -3234,19 +3561,24 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 				}
 			}
 		}
+		let prevLength= polys.length;
 		let print= false;
 		let closeEnd= true;//false;
 		let prev= -1;
+		let dist= 0;
+		let nsurf= 0;
 		let p0= trackPoints[0];
 		for (let j=1; j<trackPoints.length; j++) {
 			let p1= trackPoints[j];
-			if (p1.distanceTo(p0) < .1) {
+			let d= p1.distanceTo(p0);
+			if (d < .1) {
 //				if (print)
 //				console.log("close "+j+" "+prev+" "+
 //				  p0.bridge+" "+p1.bridge);
 				prev++;
 				continue;
 			}
+			dist+= d;
 			if ((p0.x<minX && p1.x<minX) ||
 			  (p0.x>maxX && p1.x>maxX) ||
 			  (p0.y<minY && p1.y<minY) ||
@@ -3275,37 +3607,54 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 			perp.normalize();
 			if (prev != j-1) {
 				if (polys.length > 0)
-					addEnd(true,closeEnd);
-				addVerts(p0,perp.x,perp.y);
-				addEnd(false,closeEnd);
+					addEnd(true,closeEnd?endPid:0);
+				if (!overpass)
+					trackPid++;
+//				if (cut)
+//					endPid= trackPid;
+				addVerts(p0,perp.x,perp.y,p0.dzdw);
+				addEnd(false,closeEnd?endPid:0);
 				closeEnd= true;//false;
 			}
-			addVerts(p1,perp.x,perp.y);
+			addVerts(p1,perp.x,perp.y,p1.dzdw);
 			prev= j;
 			p0= p1;
 			let m= verts.length-8;
 			if (cut) {
-				addPoly(m,m+5,m+4,true);
-				addPoly(m,m+1,m+5,true);
-				addPoly(m+1,m+6,m+5,true);
-				addPoly(m+1,m+2,m+6,true);
-				addPoly(m+2,m+7,m+6,true);
-				addPoly(m+2,m+3,m+7,true);
-				addPoly(m,m+4,m+7,false);
-				addPoly(m,m+7,m+3,false);
+				addPoly(m,m+5,m+4,trackPid);
+				addPoly(m,m+1,m+5,trackPid);
+				addPoly(m+1,m+6,m+5,trackPid);
+				addPoly(m+1,m+2,m+6,trackPid);
+				addPoly(m+2,m+7,m+6,trackPid);
+				addPoly(m+2,m+3,m+7,trackPid);
+				addPoly(m,m+4,m+7,0);
+				addPoly(m,m+7,m+3,0);
 			} else {
-				addPoly(m,m+4,m+1,true);
-				addPoly(m+1,m+4,m+5,true);
-				addPoly(m+1,m+5,m+2,true);
-				addPoly(m+2,m+5,m+6,true);
-				addPoly(m+2,m+6,m+3,true);
-				addPoly(m+3,m+6,m+7,true);
-				addPoly(m,m+3,m+7,false);
-				addPoly(m,m+7,m+4,false);
+				let surface= trackPid;
+				if (profile.fill.surface) {
+//					surface= profile.fill.surface;
+					surface= {
+					  point: { x:p1.x-x0, y:p1.y-z0 },
+					  perp: perp, profile: profile.fill,
+					  distance: dist
+					};
+//					console.log(typeof surface+" "+surface);
+					nsurf++;
+				}
+				addPoly(m,m+4,m+1,trackPid);
+				addPoly(m+1,m+4,m+5,trackPid);
+				addPoly(m+1,m+5,m+2,surface);
+				addPoly(m+2,m+5,m+6,surface);
+				addPoly(m+2,m+6,m+3,trackPid);
+				addPoly(m+3,m+6,m+7,trackPid);
+				addPoly(m,m+3,m+7,0);
+				addPoly(m,m+7,m+4,0);
 			}
 		}
-		if (polys.length > 0)
-			addEnd(true,true);
+		if (polys.length > prevLength)
+			console.log("tid "+trackPid+" "+endPid+" "+nsurf);
+		if (polys.length > prevLength)
+			addEnd(true,endPid);
 		if (controlPoints.length == 1)
 			addModelCutFill(controlPoints[0]);
 		if (overpass && polys.length>0)
@@ -3314,7 +3663,7 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 		saveCutCSGUnion();
 	}
 	if (overpass)
-		console.log("noverpass "+noverpass);
+		console.log(" noverpass "+noverpass);
 	for (let i=0; !overpass && i<switches.length; i++) {
 		let sw= switches[i];
 		let p0= sw.points[0].position;
@@ -3329,6 +3678,7 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 		  (p0.y>maxY && p1.y>maxY)) {
 			continue;
 		}
+		trackPid++;
 //		console.log("sw "+i);
 		let d1= p1.clone().sub(p0);
 		d1.normalize();
@@ -3340,22 +3690,22 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 		let perp= new THREE.Vector2(p0.y-p1.y,p1.x-p0.x);
 		perp.normalize();
 		setProfile(track0.type);
-		addVerts(p0,perp.x,perp.y);
-		addEnd(false,false);
+		addVerts(p0,perp.x,perp.y,0);
+		addEnd(false,0);
 		setProfile(track1.type);
-		addVerts(p1,perp.x,perp.y);
-		addEnd(true,false);
-		addPolys();
+		addVerts(p1,perp.x,perp.y,0);
+		addEnd(true,0);
+		addPolys(trackPid,p0,perp);
 		saveCutCSGUnion();
 		perp= new THREE.Vector2(p0.y-p2.y,p2.x-p0.x);
 		perp.normalize();
 		setProfile(track0.type);
-		addVerts(p0,perp.x,perp.y);
-		addEnd(false,false);
+		addVerts(p0,perp.x,perp.y,0);
+		addEnd(false,0);
 		setProfile(track2.type);
-		addVerts(p2,perp.x,perp.y);
-		addEnd(true,false);
-		addPolys();
+		addVerts(p2,perp.x,perp.y,0);
+		addEnd(true,0);
+		addPolys(trackPid,p0,perp);
 		saveCutCSGUnion();
 	}
 	let pDist= function(p1,p2){
@@ -3364,6 +3714,7 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 		return Math.sqrt(dx*dx+dy*dy);
 	}
 	for (let i=0; cut==false && i<faces.length; i++) {
+		trackPid++;
 		let face= faces[i];
 		let n= 0;
 		for (let j=0; j<face.tracks.length; j++)
@@ -3378,7 +3729,7 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 			let p= points[j];
 			let x= p.x-x0;
 			let y= p.y-z0;
-			let z= p.z;
+			let z= p.z-.1;
 			verts.push(new CSG.Vertex(new CSG.Vector(
 			  [x,y,z]),normal));
 		}
@@ -3398,10 +3749,10 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 				  pk.x,pk.y)>0;
 				if (cut ? !ccw : ccw)
 					addPoly(j+nVerts,j+1+nVerts,k+nVerts,
-					  true);
+					  trackPid);
 				else
 					addPoly(j+nVerts,k+nVerts,j+1+nVerts,
-					  true);
+					  trackPid);
 				j++;
 			} else {
 				let pk1= points[k-1];
@@ -3409,10 +3760,10 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 				  pk.x,pk.y)>0;
 				if (cut ? !ccw : ccw)
 					addPoly(j+nVerts,k-1+nVerts,k+nVerts,
-					  true);
+					  trackPid);
 				else
 					addPoly(j+nVerts,k+nVerts,k-1+nVerts,
-					  true);
+					  trackPid);
 				k--;
 			}
 		}
@@ -3426,11 +3777,59 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 	}
 }
 
-let writeCsgObj= function(filename,model,pi,pj)
+let countShared= function(polys)
+{
+	let counts= [];
+	for (let i=0; i<polys.length; i++) {
+		let id= polys[i].shared;
+//		console.log("shared "+id+" "+(typeof id));
+		if (id && (typeof id)=="object")
+			id= id.profile.surface;
+		if (id>0 && id<2000)
+			id= 1;
+		for (let j=counts.length; j<=id; j++)
+			counts[j]= 0;
+		counts[id]++;
+	}
+	for (let i=0; i<counts.length; i++)
+		if (counts[i] > 0)
+			console.log("count "+i+" "+counts[i]);
+}
+
+let writeCsgObj= function(filename,model,pi,pj,patchImages)
 {
 	let uv= true;
-	let verts= [];
-	let findVert= function(v1) {
+	let getPolyType= function(poly) {
+		if (poly.shared && (typeof poly.shared)=="object")
+			return poly.shared.profile.surface;
+		return poly.shared || 0;
+	}
+	let countPolygons= function() {
+		let n= 0;
+		for (let i=0; i<model.polygons.length; i++) {
+			let poly= model.polygons[i];
+			let ptype= getPolyType(poly);
+			if (ptype===0)
+				continue;
+			n++;
+		}
+		return n;
+	}
+	let findPolygons= function(pid) {
+		let polys= [];
+		for (let i=0; i<model.polygons.length; i++) {
+			let poly= model.polygons[i];
+			let ptype= getPolyType(poly);
+			if (pid==0 &&
+			  (ptype===0 || (2000<=ptype && ptype<3000)))
+				continue;
+			if (pid>0 && ptype!==pid)
+				continue;
+			polys.push(poly);
+		}
+		return polys;
+	}
+	let findVert= function(verts,v1) {
 		let tol= .001;
 		for (let i=0; i<verts.length; i++) {
 			let v= verts[i];
@@ -3441,80 +3840,223 @@ let writeCsgObj= function(filename,model,pi,pj)
 		}
 		return null;
 	}
-	for (let i=0; i<model.polygons.length; i++) {
-		let poly= model.polygons[i];
-		if (poly.shared === 0)
-			continue;
-		for (let j=0; j<poly.vertices.length; j++) {
-			let v= poly.vertices[j];
-			let v2= findVert(v);
-			if (v2) {
-				v.id= v2.id;
-			} else {
-				verts.push(v);
-				v.id= verts.length;
+	let findVerts= function(polygons,id0) {
+		let verts= [];
+		for (let i=0; i<polygons.length; i++) {
+			let poly= polygons[i];
+			for (let j=0; j<poly.vertices.length; j++) {
+				let v= poly.vertices[j];
+				let v2= findVert(verts,v);
+				if (v2) {
+					v.id= v2.id;
+				} else {
+					verts.push(v);
+					v.id= verts.length+id0;
+				}
 			}
 		}
+		return verts;
 	}
-	if (verts.length <= 0)
-		return;
-	console.log("file "+filename);
-	const fd= fs.openSync(filename,"w");
-	for (let i=0; i<verts.length; i++) {
-		let v= verts[i];
-		fs.writeSync(fd,"v "+v.pos.x.toFixed(3)+" "+
-		  v.pos.y.toFixed(3)+"  "+
-		  v.pos.z.toFixed(3)+"\n",null,"utf8");
+	let assignVertIds= function(polygons,id0) {
+		let verts= [];
+		for (let i=0; i<polygons.length; i++) {
+			let poly= polygons[i];
+			for (let j=0; j<poly.vertices.length; j++) {
+				let v= poly.vertices[j];
+				verts.push(v);
+				v.id= verts.length+id0;
+				v.normal= poly.plane.normal;
+				v.shared= poly.shared;
+			}
+		}
+		return verts;
 	}
-	if (uv) {
-		let minX= 8*(16*pj-128);
-		let minY= 8*(128-16*pi);
-//		let minY= 8*(128-16-16*pi);
-//		minX= 8*(-128);
-//		minY= 8*(128-16);
-//		minY= 8*(128);
+	let printVerts= function(fd,verts) {
 		for (let i=0; i<verts.length; i++) {
-			let vert= verts[i];
-			let u= (vert.pos.x-minX)/128;
-			let v= (minY-vert.pos.y)/128;
-//			let u= (vert.pos.x-minX)/2048;
-//			let v= (minY-vert.pos.y)/2048;
-			fs.writeSync(fd,"vt "+u.toFixed(5)+" "+
-			  v.toFixed(5)+"\n",null,"utf8");
+			let v= verts[i];
+			fs.writeSync(fd,"v "+v.pos.x.toFixed(3)+" "+
+			  v.pos.y.toFixed(3)+"  "+
+			  v.pos.z.toFixed(3)+"\n",null,"utf8");
 		}
 	}
-	let nneg= 0;
-	let printFaceVert= function(v) {
+	let printFaceVert= function(fd,v) {
 		fs.writeSync(fd," "+v.id,null,"utf8");
 		if (uv)
 			fs.writeSync(fd,"/"+v.id,null,"utf8");
 	}
-	for (let i=0; i<model.polygons.length; i++) {
-		let poly= model.polygons[i];
-		if (poly.shared === 0)
-			continue;
-		if (poly.plane.normal.z < 0)
-			nneg++;
-		let v0= poly.vertices[0];
-		for (let j=1; j<poly.vertices.length-1; j++) {
-			let vj= poly.vertices[j];
-			let vj1= poly.vertices[j+1];
-			if (v0.id==vj.id || v0.id==vj1.id || vj.id==vj1.id)
-				continue;
-			fs.writeSync(fd,"f ",null,"utf8");
-			printFaceVert(v0);
-			printFaceVert(vj);
-			printFaceVert(vj1);
-			fs.writeSync(fd,"\n",null,"utf8");
+	let printFaces= function(fd,polygons) {
+		for (let i=0; i<polygons.length; i++) {
+			let poly= polygons[i];
+			let v0= poly.vertices[0];
+			for (let j=1; j<poly.vertices.length-1; j++) {
+				let vj= poly.vertices[j];
+				let vj1= poly.vertices[j+1];
+				if (v0.id==vj.id || v0.id==vj1.id ||
+				  vj.id==vj1.id)
+					continue;
+				fs.writeSync(fd,"f ",null,"utf8");
+				printFaceVert(fd,v0);
+				printFaceVert(fd,vj);
+				printFaceVert(fd,vj1);
+				fs.writeSync(fd,"\n",null,"utf8");
+			}
 		}
+	}
+	let printUVs= function(fd,verts,mult) {
+		let minX= 8*(16*pj-128);
+		let minY= 8*(128-16*pi);
+		for (let i=0; i<verts.length; i++) {
+			let vert= verts[i];
+			let u= mult*(vert.pos.x-minX)/128;
+			let v= mult*(minY-vert.pos.y)/128;
+			fs.writeSync(fd,"vt "+u.toFixed(5)+" "+
+			  v.toFixed(5)+"\n",null,"utf8");
+		}
+	}
+	let printWallUVs= function(fd,verts) {
+		for (let i=0; i<verts.length; i++) {
+			let vert= verts[i];
+			let dot= -vert.normal.y*vert.pos.x +
+			  vert.normal.x*vert.pos.y;
+			let u= dot/10;
+			let v= vert.pos.z/10;
+			fs.writeSync(fd,"vt "+u.toFixed(5)+" "+
+			  v.toFixed(5)+"\n",null,"utf8");
+		}
+	}
+	let printSurfaceUVs= function(fd,verts) {
+		for (let i=0; i<verts.length; i++) {
+			let vert= verts[i];
+			let p0= vert.shared.point;
+			let perp= vert.shared.perp;
+			let scale= 2*vert.shared.profile.width;
+			let x= vert.pos.x-p0.x;
+			let y= vert.pos.y-p0.y;
+			let u= (vert.shared.distance - y*perp.x + x*perp.y) /
+			  scale;
+			let v= .5 + (x*perp.x + y*perp.y) / scale;
+			fs.writeSync(fd,"vt "+u.toFixed(5)+" "+
+			  v.toFixed(5)+"\n",null,"utf8");
+//			console.log("uv "+i+" "+x+" "+y+" "+scale+" "+
+//			  vert.shared.distance+" "+perp.x+" "+perp.y+" "+
+//			  u+" "+v);
+		}
+	}
+	if (countPolygons() == 0)
+		return false;
+	console.log("file "+filename);
+	const fd= fs.openSync(filename,"w");
+	let id0= 0;
+	let polygons= findPolygons(0);
+	if (polygons.length > 0) {
+		let verts= findVerts(polygons,id0);
+		console.log(" main "+polygons.length+" "+verts.length+" "+
+		  model.polygons.length);
+		fs.writeSync(fd,"o main\n",null,"utf8");
+		printVerts(fd,verts);
+		if (patchImages)
+			printUVs(fd,verts,1);
+		else
+			printUVs(fd,verts,2);
+		printFaces(fd,polygons);
+		id0+= verts.length;
+	}
+	polygons= findPolygons(2000);
+	if (polygons.length > 0) {
+		verts= assignVertIds(polygons,id0);
+		console.log(" walls "+polygons.length+" "+verts.length);
+		fs.writeSync(fd,"o walls\n",null,"utf8");
+		printVerts(fd,verts);
+		printWallUVs(fd,verts);
+		printFaces(fd,polygons);
+		id0+= verts.length;
+	}
+	polygons= findPolygons(2003);
+	if (polygons.length > 0) {
+		verts= assignVertIds(polygons,id0);
+		console.log(" track "+polygons.length+" "+verts.length);
+		fs.writeSync(fd,"o tracks\n",null,"utf8");
+		printVerts(fd,verts);
+		printSurfaceUVs(fd,verts);
+		printFaces(fd,polygons);
+		id0+= verts.length;
+	}
+	polygons= findPolygons(2001);
+	if (polygons.length > 0) {
+		verts= assignVertIds(polygons,id0);
+		console.log(" roads "+polygons.length+" "+verts.length);
+		fs.writeSync(fd,"o roads\n",null,"utf8");
+		printVerts(fd,verts);
+		printSurfaceUVs(fd,verts);
+		printFaces(fd,polygons);
+		id0+= verts.length;
+	}
+	polygons= findPolygons(2002);
+	if (polygons.length > 0) {
+		verts= assignVertIds(polygons,id0);
+		console.log(" dirtroads "+polygons.length+" "+verts.length);
+		fs.writeSync(fd,"o dirtroads\n",null,"utf8");
+		printVerts(fd,verts);
+		printSurfaceUVs(fd,verts);
+		printFaces(fd,polygons);
+		id0+= verts.length;
+	}
+	polygons= findPolygons(2100);
+	if (polygons.length > 0) {
+		verts= assignVertIds(polygons,id0);
+		console.log(" trees "+polygons.length+" "+verts.length);
+		fs.writeSync(fd,"o trees\n",null,"utf8");
+		printVerts(fd,verts);
+		printUVs(fd,verts,8);
+		printFaces(fd,polygons);
+		id0+= verts.length;
+	}
+	polygons= findPolygons(2101);
+	if (polygons.length > 0) {
+		verts= assignVertIds(polygons,id0);
+		console.log(" field "+polygons.length+" "+verts.length);
+		fs.writeSync(fd,"o field\n",null,"utf8");
+		printVerts(fd,verts);
+		printUVs(fd,verts,8);
+		printFaces(fd,polygons);
+		id0+= verts.length;
+	}
+	polygons= findPolygons(2102);
+	if (polygons.length > 0) {
+		verts= assignVertIds(polygons,id0);
+		console.log(" fieldw "+polygons.length+" "+verts.length);
+		fs.writeSync(fd,"o fieldw\n",null,"utf8");
+		printVerts(fd,verts);
+		printUVs(fd,verts,8);
+		printFaces(fd,polygons);
+		id0+= verts.length;
+	}
+	polygons= findPolygons(2103);
+	if (polygons.length > 0) {
+		verts= assignVertIds(polygons,id0);
+		console.log(" field20 "+polygons.length+" "+verts.length);
+		fs.writeSync(fd,"o field20\n",null,"utf8");
+		printVerts(fd,verts);
+		printUVs(fd,verts,8);
+		printFaces(fd,polygons);
+		id0+= verts.length;
+	}
+	polygons= findPolygons(2104);
+	if (polygons.length > 0) {
+		verts= assignVertIds(polygons,id0);
+		console.log(" field40 "+polygons.length+" "+verts.length);
+		fs.writeSync(fd,"o field40\n",null,"utf8");
+		printVerts(fd,verts);
+		printUVs(fd,verts,8);
+		printFaces(fd,polygons);
+		id0+= verts.length;
 	}
 	fs.closeSync(fd);
 	console.log("close "+filename);
-	if (nneg > 0)
-		console.log("neg "+filename+" "+nneg);
+	return true;
 }
 
-let cutFillBySquare= function(i0,j0,model,cut,fill,tx,tz,opCut)
+let cutFillBySquare= function(i0,j0,model,cut,fill,tx,tz,opCut,patchImages)
 {
 	let polys= [];
 	let ncut= 0;
@@ -3544,11 +4086,14 @@ let cutFillBySquare= function(i0,j0,model,cut,fill,tx,tz,opCut)
 //					console.log("cbox "+cbox.polygons.length);
 					if (cbox.polygons.length>0 &&
 					  sq.intersect(cbox).polygons.length>0) {
-						sq= sq.subtract(cbox);
+						let sq1= sq.subtract(cbox);
+						if (sq1.polygons.length>0)
+							sq= sq1;
 						ncut++;
 //						console.log("cut "+i+" "+j+" "+
 //						  sq.polygons.length);
 					}
+//					console.log(" sq "+sq.polygons.length);
 				}
 				for (let k=0; k<opCut.length; k++) {
 					let cbox= clipPolygons(opCut[k],bBox);
@@ -3560,31 +4105,63 @@ let cutFillBySquare= function(i0,j0,model,cut,fill,tx,tz,opCut)
 			}
 			for (let k=0; k<sq.polygons.length; k++) {
 				let poly= sq.polygons[k];
-				if (poly.shared > 0) {
+				if (poly.shared) {
 					polys.push(poly);
 				}
 			}
+			if (!patchImages)
+				setSquareElevation(tx,tz,i0+i,j0+j,
+				  sq.polygons);
 			if (opCut.length > 0) {
 				for (let k=0; k<fbox.polygons.length; k++) {
 					let poly= fbox.polygons[k];
-//					if (poly.shared > 0) {
+//					if (poly.shared) {
 						polys.push(poly);
 //					}
+				}
 			}
-			}
-//			console.log("sq "+i+" "+j+" "+sq.polygons.length+
+//			console.log(" sq "+i+" "+j+" "+sq.polygons.length+
 //			  " "+polys.length);
 		}
 	}
 	if (opCut.length == 0) {
 		for (let k=0; k<fill.polygons.length; k++) {
 			let poly= fill.polygons[k];
-			if (poly.shared > 0)
+			if (poly.shared)
 				polys.push(poly);
 		}
 	}
 	console.log("ncut "+ncut);
 	return CSG.fromPolygons(polys);
+}
+
+let setSquareElevation= function(tx,tz,ti,tj,polygons)
+{
+	let tile= findTile(tx,tz);
+	let minz= 1e10;
+	for (let i=0; i<polygons.length; i++) {
+		let poly= polygons[i];
+		if (poly.shared && poly.shared<=1024)
+			continue;
+		for (let j=0; j<poly.vertices.length; j++) {
+			let vert= poly.vertices[j];
+			if (minz > vert.pos.z)
+				minz= vert.pos.z;
+			vert.cut= 1;
+		}
+	}
+//	if (minz == 1e10)
+//		return;
+	minz-= .1;
+	let setElev= function(i,j) {
+		let e= getTerrainElevation(i,j,tile,false);
+		if (e > minz)
+			setTerrainElevation(i,j,tile,minz,false);
+	}
+	setElev(ti,tj);
+	setElev(ti+1,tj);
+	setElev(ti,tj+1);
+	setElev(ti+1,tj+1);
 }
 
 let clipPolygons= function(csg,box,print)
@@ -3608,12 +4185,12 @@ let clipPolygons= function(csg,box,print)
 				  vert.pos.y+" "+vert.pos.z);
 			}
 		}
-		for (let j=0; j<box.polygons.length; j++) {
+		for (let j=0; poly && j<box.polygons.length; j++) {
 			let plane= box.polygons[j].plane;
 			let front= [];
 			let back= [];
 			plane.splitPolygon(poly,front,back,front,back);
-			pout.concat(back);
+//			pout.concat(back);
 			if (print)
 				console.log(" j "+j+" "+
 				  front.length+" "+back.length);
@@ -3624,7 +4201,7 @@ let clipPolygons= function(csg,box,print)
 				break;
 			}
 		}
-		if (poly)
+		if (poly && poly.flip)
 			pout.push(poly);
 	}
 	if (print)
@@ -3646,6 +4223,12 @@ let overrideSwitchShapes= function()
 //	trackDB.tSection.shapes[38053].filename= "SR_1tSwt_w_im06dR_NS.s";
 //	  trackDB.tSection.shapes[23407].filename;
 //	  trackDB.tSection.shapes[32249].filename;
+	trackDB.tSection.shapes[22697].filename= "SR_1tSwt_w_m06dL_Div.s";
+	trackDB.tSection.shapes[22698].filename= "SR_1tSwt_w_m06dR_Div.s";
+	let derail= "..\\\\..\\\\ROUTES\\\\stjlc\\\\SHAPES\\\\derail.s";
+	trackDB.tSection.shapes[39829].filename= derail;
+	trackDB.tSection.shapes[39830].filename= derail;
+	trackDB.tSection.shapes[24799].filename= derail;
 }
 
 let addModel= function(filename,x,y,z,dx,dy,grade) {
@@ -3671,8 +4254,9 @@ let addModel= function(filename,x,y,z,dx,dy,grade) {
 
 let addBridgeEndModel= function(track,cp,reverse)
 {
-	if (track.type=="road" || track.type == "dirtroad" ||
-	  track.type == "dirtroad1" || cp.bridge=="turntable")
+	if (track.type=="road" || track.type == "road1" ||
+	  track.type == "dirtroad" || track.type == "dirtroad1" ||
+	  cp.bridge=="turntable" || cp.bridge=="norails")
 		return;
 	let tp= track.trackPoints[cp.trackPoint];
 	let dx= cp.direction.x;
@@ -3686,7 +4270,7 @@ let addBridgeEndModel= function(track,cp,reverse)
 	addModel("bridgerailend.s",tp.x,tp.y,tp.z,dx,dy,g);
 }
 
-let addTrestle= function(track,cp0,cp1)
+let addTrestle= function(track,cp0,cp1,lastCP)
 {
 	let pile= cp0.bridge=="ptbd" || cp0.bridge=="pttd";
 	let covb= cp0.bridge == "covb";
@@ -3704,6 +4288,8 @@ let addTrestle= function(track,cp0,cp1)
 		bentSpacing= deckSpacing;
 	let nBent= Math.floor(len/bentSpacing);
 	let nDeck= Math.ceil(len/deckSpacing);
+	if (lastCP && nBent>0)
+		bentSpacing= len/nBent - .01;
 	if (covb) {
 		nDeck= Math.floor(len/deckSpacing);
 		nBent= 0;
@@ -3712,8 +4298,10 @@ let addTrestle= function(track,cp0,cp1)
 		nBent= 0;
 	let deck0= (len-deckSpacing*(nDeck-1))/2;
 	let bent0= (len-bentSpacing*(nBent-1))/2;
+	if (lastCP && nBent>0)
+		bent0= bentSpacing;
 	console.log("trestle "+cp0.bridge+" "+pile+" "+
-	  len+" "+nBent+" "+bent0+" "+nDeck+" "+deck0);
+	  len+" "+nBent+" "+bent0+" "+nDeck+" "+deck0+" "+lastCP);
 	let dist= 0;
 	let tp0= trackPoints[cp0.trackPoint];
 	let nd= 0;
@@ -3830,7 +4418,7 @@ let writePaths= function()
 			let cp= controlPoints[j];
 //			if (cp.bridge && cp.bridge=="covb" &&
 //			  cp.model && cp.model.filename) {
-			if (cp.name) {
+			if (cp.name && !cp.name.startsWith("signal")) {
 				writePath(n,cp,controlPoints[j+1]);
 				n++;
 				if (j > 0) {
@@ -3894,7 +4482,7 @@ let writePath= function(n,cp0,cp1)
 
 let getWaterInfo= function(tile)
 {
-//	return null;
+	return null;
 	let x0= 2048*(tile.x-centerTX);
 	let z0= 2048*(tile.z-centerTZ);
 	let points= [];
@@ -4014,7 +4602,7 @@ let terrainCoords= function(u,v)
 let setContourElevation= function()
 {
 	console.log("setcontour "+centerU+" "+centerV);
-	let smooth= function(p) {
+	let smooth= function(p,print) {
 		let sum= 0;
 		for (let di=-1; di<=1; di++) {
 			for (let dj=-1; dj<=1; dj++) {
@@ -4025,9 +4613,9 @@ let setContourElevation= function()
 		sum/= 9;
 		if (sum < p.maxZ)
 			setTerrainElevation(p.i,p.j,p.tile,sum,true);
-//		else
-//			console.log("zlimit "+sum+" "+p.z+" "+p.maxZ+" "+
-//			  p.i+" "+p.j);
+		else if (print)
+			console.log("zlimit "+sum+" "+p.z+" "+p.maxZ+" "+
+			  p.i+" "+p.j);
 	}
 	for (let i=0; i<tracks.length; i++) {
 		let track= tracks[i];
@@ -4052,6 +4640,8 @@ let setContourElevation= function()
 				maxY= cp.position.y;
 		}
 		console.log("contour "+minX+" "+maxX+" "+minY+" "+maxY);
+		let print= minX<centerU && centerU<maxX &&
+		  minY<centerV && centerV<maxY;
 		let points= [];
 		for (let x=8*Math.ceil(minX/8); x<maxX; x+=8) {
 			let min= 1e10;
@@ -4068,8 +4658,9 @@ let setContourElevation= function()
 					cp0= cp1;
 					continue;
 				}
-				console.log(" pi "+j+" "+x+" "+
-				  pi.x+" "+pi.y+" "+pi.s);
+				if (print)
+					console.log(" pi "+j+" "+x+" "+
+					  pi.x+" "+pi.y+" "+pi.s);
 				if (min > pi.y) {
 					min= pi.y;
 					minZ= cp0.position.z +
@@ -4082,8 +4673,9 @@ let setContourElevation= function()
 				}
 				cp0= cp1;
 			}
-			console.log(" x "+x+" "+min+" "+max+" "+minZ+" "+maxZ+
-			  " "+(8*Math.ceil(min/8)));
+			if (print)
+				console.log(" x "+x+" "+min+" "+max+" "+minZ+
+				  " "+maxZ+" "+(8*Math.ceil(min/8)));
 			for (let y=8*Math.ceil(min/8); y<max; y+=8) {
 				let z= minZ + (maxZ-minZ)*(y-min)/(max-min);
 				let tc= terrainCoords(x,y);
@@ -4091,7 +4683,9 @@ let setContourElevation= function()
 				if (tile) {
 					let e= getTerrainElevation(
 					  tc.i,tc.j,tile,true);
-					console.log("  y "+y+" "+e+" "+z);
+					if (print)
+						console.log("  y "+y+" "+e+
+						  " "+z+" "+tile.floor);
 					if (e < z)
 						z= e;
 					let maxZ= getTerrainElevation(
@@ -4100,6 +4694,12 @@ let setContourElevation= function()
 						z= maxZ;
 					setTerrainElevation(tc.i,tc.j,
 					  tile,z,true);
+					e= getTerrainElevation(
+					  tc.i,tc.j,tile,true);
+					if (print)
+						console.log("  y "+y+" "+e+
+						  " "+z+" "+tile.floor+" "+
+						  maxZ);
 					points.push({ x:x, y:y, z:z, maxZ:maxZ,
 					 tile:tile, i:tc.i, j:tc.j, adjy:0 });
 				}
@@ -4125,16 +4725,18 @@ let setContourElevation= function()
 			  points[j-1].x!=p.x || points[j+1].x!=p.x)
 				edge.push(p);
 		}
-		console.log("np "+points.length+" "+edge.length);
-		for (let j=0; j<edge.length; j++) {
-			console.log("edge "+j+" "+edge[j].x+" "+edge[j].y+" "+
-			  edge[j].adjy);
+		if (print) {
+			console.log("np "+points.length+" "+edge.length);
+			for (let j=0; j<edge.length; j++) {
+				console.log("edge "+j+" "+edge[j].x+" "+
+				  edge[j].y+" "+edge[j].adjy);
+			}
 		}
-		for (let pass=0; pass<10; pass++) {
+		for (let pass=0; pass<0; pass++) {
 			for (let j=0; j<edge.length; j++)
-				smooth(edge[j]);
+				smooth(edge[j],print);
 			for (let j=0; j<points.length; j++)
-				smooth(points[j]);
+				smooth(points[j],print);
 		}
 	}
 }
@@ -4149,7 +4751,7 @@ let saveBridgeTrackShape= function(dp)
 		moves.push([curve.len1,0]);
 	}
 	if (curve.radius > 10) {
-		moves.push([curve.radius,curve.angle*180/Math.PI]);
+		moves.push([curve.radius,-curve.angle*180/Math.PI]);
 	}
 	if (curve.len2 > .01) {
 		moves.push([curve.len2,0]);
@@ -4161,4 +4763,401 @@ let saveBridgeTrackShape= function(dp)
 	let s= JSON.stringify(data,null,1);
 	let path= routeDir+fspath.sep+"SHAPES"+fspath.sep+filename+".json";
 	fs.writeFileSync(path,s);
+}
+
+let makeWaterModel= function(track)
+{
+	console.log("makewatermodel");
+	let controlPoints= track.controlPoints;
+	let cp= controlPoints[0];
+	if (!cp.model) {
+		console.log("no model");
+		let id= 1;
+		for (let i=0; i<tracks.length; i++) {
+			let t= tracks[i];
+			if (t.type!="water" || t==track)
+				continue;
+			let p= t.controlPoints[0];
+			if (p.model && id<=p.model.shapeID) {
+				id= p.model.shapeID+1;
+			}
+		}
+		cp.model= { filename: "water"+id+".s", shapeID: id };
+	}
+	console.log("water "+cp.model.shapeID+" "+cp.model.filename);
+	let static= { filename: cp.model.filename };
+	static.wftx= centerTX + Math.round(cp.position.x/2048);
+	static.wftz= centerTZ + Math.round(cp.position.y/2048);
+	static.x= cp.position.x - 2048*(static.wftx-centerTX);
+	static.y= cp.position.z;
+	static.z= cp.position.y - 2048*(static.wftz-centerTZ);
+	static.ax= 0;
+	static.ay= 0;//Math.PI/2;
+	static.az= 0;
+	let verts= [];
+	for (let i=0; i<controlPoints.length; i++) {
+		let p= controlPoints[i];
+		verts.push({
+		  x: p.position.x-cp.position.x,
+		  y: p.position.y-cp.position.y,
+		  z: p.position.z-cp.position.z,
+		  id: i+1
+		});
+	}
+	let findInside= function(p0,p1,p2) {
+		for (let p=p2.next; p!=p0; p=p.next) {
+			if (triArea(p0.x,p0.y,p1.x,p1.y,p.x,p.y)>0 &&
+			  triArea(p1.x,p1.y,p2.x,p2.y,p.x,p.y)>0 &&
+			  triArea(p2.x,p2.y,p0.x,p0.y,p.x,p.y)>0)
+				return p;
+		}
+		return null;
+	}
+	let calcAreaInside= function(p1) {
+		let p0= p1.prev;
+		let p2= p1.next;
+		p1.area= triArea(p0.x,p0.y,p1.x,p1.y,p2.x,p2.y);
+		p1.inside= p1;
+		if (p1.area > 0)
+			p1.inside= findInside(p0,p1,p2);
+//		else if (p1.area < 0)
+//			p1.inside= findInside(p2,p1,p0);
+//		else
+//			p1.inside= null;
+		let min= p0.z;
+		let max= p0.z;
+		if (min > p1.z)
+			min= p1.z;
+		if (max < p1.z)
+			max= p1.z;
+		if (min > p2.z)
+			min= p2.z;
+		if (max < p2.z)
+			max= p2.z;
+		p1.dz= max-min;
+	}
+	let v0= verts[verts.length-1];
+	for (let i=0; i<verts.length; i++) {
+		let v1= verts[i];
+		v0.next= v1;
+		v1.prev= v0;
+		v0= v1;
+	}
+	for (let i=0; i<verts.length; i++) {
+		calcAreaInside(verts[i]);
+	}
+	console.log("file "+cp.model.filename);
+	let path= routeDir+fspath.sep+"SHAPES"+fspath.sep+
+	  cp.model.filename+".obj";
+	const fd= fs.openSync(path,"w");
+	for (let i=0; i<verts.length; i++) {
+		let v= verts[i];
+		fs.writeSync(fd,"v "+v.x.toFixed(3)+" "+
+		  v.y.toFixed(3)+"  "+
+		  v.z.toFixed(3)+"\n",null,"utf8");
+	}
+	for (let i=0; i<verts.length; i++) {
+		let vert= verts[i];
+		let u= vert.x/10;
+		let v= -vert.y/10;
+		fs.writeSync(fd,"vt "+u.toFixed(5)+" "+
+		  v.toFixed(5)+"\n",null,"utf8");
+	}
+	let printFaceVert= function(v) {
+		fs.writeSync(fd," "+v.id,null,"utf8");
+		fs.writeSync(fd,"/"+v.id,null,"utf8");
+	}
+	let first= verts[0];
+	for (let iter=0; iter<verts.length-2; iter++) {
+		let best= first.inside ? null : first;
+		for (let p=first.next; p!=first; p=p.next) {
+			if (!p.inside && (!best || best.dz>p.dz)) {
+				best= p;
+			}
+		}
+		if (best == null)
+			break;
+		fs.writeSync(fd,"f ",null,"utf8");
+		printFaceVert(best.prev);
+		printFaceVert(best);
+		printFaceVert(best.next);
+		fs.writeSync(fd,"\n",null,"utf8");
+		best.prev.next= best.next;
+		best.next.prev= best.prev;
+		first= best.next;
+		calcAreaInside(best.next);
+		calcAreaInside(best.prev);
+	}
+	fs.closeSync(fd);
+	return static;
+}
+
+let saveSwitchExt= function(sw,id)
+{
+	let filename= "switch" + id.toFixed(0);
+	console.log("swext "+filename);
+	let paths= [];
+	for (let i=1; i<sw.points.length; i++) {
+		let p= sw.points[i];
+		let p2= p.extSwitchPoint;
+		console.log(" i "+i+" "+p.distance+" "+p2.distance);
+		let moves= [];
+		let dynTrackPoints= p.track.dynTrackPoints;
+		if (p == p.track.controlPoints[0]) {
+			for (let j=0; j<dynTrackPoints.length; j++) {
+				let dp= dynTrackPoints[j];
+				if (dp.distance >= p2.distance)
+					break;
+				console.log(" ij "+i+" "+j);
+				let curve= dp.curve;
+				if (curve.len1 > .01)
+					moves.push([curve.len1,0]);
+				if (curve.radius > 10)
+					moves.push([curve.radius,
+					  -curve.angle*180/Math.PI]);
+				if (curve.len2 > .01)
+					moves.push([curve.len2,0]);
+				dp.dontAdd= true;
+			}
+		} else {
+			for (let j=dynTrackPoints.length-2; j>=0; j--) {
+				let dp= dynTrackPoints[j];
+				console.log(" d "+j+" "+dp.distance);
+				if (dp.distance < p2.distance)
+					break;
+				console.log(" ij "+i+" "+j);
+				let curve= dp.curve;
+				if (curve.len2 > .01)
+					moves.push([curve.len2,0]);
+				if (curve.radius > 10)
+					moves.push([curve.radius,
+					  curve.angle*180/Math.PI]);
+				if (curve.len1 > .01)
+					moves.push([curve.len1,0]);
+				dp.dontAdd= true;
+			}
+		}
+		let o= sw.offsets[i-1];
+		paths.push({ start: [-o.y,o.z,o.x],
+		  angle: -sw.angles[i-1]*180/Math.PI,
+		  moves: moves });
+	}
+	let data= { 
+	  filename: filename+".s",
+	  mainroute: 0,
+	  paths: paths
+	};
+	let s= JSON.stringify(data,null,1);
+	let path= routeDir+fspath.sep+"SHAPES"+fspath.sep+filename+".json";
+	fs.writeFileSync(path,s);
+	return filename+".s";
+}
+
+let matchSignals= function()
+{
+	for (let i=0; i<tracks.length; i++) {
+		let controlPoints= tracks[i].controlPoints;
+		if (controlPoints.length != 1)
+			continue;
+		let cp= controlPoints[0];
+		if (!cp.model || !cp.model.signal)
+			continue;
+		let signal= cp.model.signal;
+		let best= null;
+		let bestd= 1e10;
+		let bestj= -1;
+		let bestk= -1;
+		for (let j=0; j<tracks.length; j++) {
+			if (j == i)
+				continue;
+			let dynTrackPoints= tracks[j].dynTrackPoints;
+			for (let k=1; k<dynTrackPoints.length-1; k++) {
+				let dp= dynTrackPoints[k];
+				let d= dp.position.distanceTo(cp.position);
+				if (d < bestd) {
+					bestd= d;
+					best= dp;
+					bestj= j;
+					bestk= k;
+				}
+				if (signal.name && dp.controlPoint &&
+				  dp.controlPoint.name &&
+				  signal.name==dp.controlPoint.name) {
+					bestd= 0;
+					best= dp;
+					bestj= j;
+					bestk= k;
+				}
+			}
+		}
+		if (best) {
+			best.signal= signal;
+			let dot= best.direction.dot(cp.direction);
+			best.signal.dot= dot;
+			console.log("sigdist "+bestd+" "+dot+" "+
+			  bestj+" "+bestk);
+			if (signal.link) {
+				let controlPoints= tracks[bestj].controlPoints;
+				let cp= controlPoints[
+				  signal.link==1?0:controlPoints.length-1];
+				if (cp.sw) {
+					signal.linkId= cp.sw.trackNode.id;
+				}
+			}
+		}
+		if (signal.linkName) {
+			for (let j=0; j<switches.length; j++) {
+				let sw= switches[j];
+				for (let k=1; k<3; k++) {
+					if (sw.points[k].name &&
+					  sw.points[k].name==signal.linkName) {
+						signal.linkId= sw.trackNode.id;
+						signal.linkPin= k-1;
+					}
+				}
+			}
+		}
+	}
+}
+
+let assignPatchColors= function(model,patchColors,i0,j0)
+{
+	let getColor= function(poly) {
+		let sx= 0;
+		let sy= 0;
+		let n= 0;
+		for (let i=0; i<poly.vertices.length; i++) {
+			let v= poly.vertices[i];
+			sx+= v.pos.x;
+			sy+= v.pos.y;
+			n++;
+		}
+		sx/= n;
+		sy/= n;
+		let sqi= Math.ceil(128-sy/8-i0);
+		let sqj= Math.floor(sx/8+128-j0);
+		if (sqi<0 || sqi>15 || sqj<0 || sqj>15) {
+			console.log("sqij "+sqi+" "+sqj+" "+
+			  sy+" "+i0+" "+sx+" "+j0);
+			if (sqi<0)
+				sqi= 0;
+			if (sqi>15)
+				sqi= 15;
+			if (sqj<0)
+				sqj= 0;
+			if (sqj>15)
+				sqj= 15;
+		}
+		return patchColors[sqi*16+sqj];
+	}
+	for (let i=0; i<model.polygons.length; i++) {
+		let poly= model.polygons[i];
+		if (poly.shared && poly.shared>0 && poly.shared<=1024) {
+			let j= Math.floor((poly.shared-1)/2);
+			let c= patchColors[j];
+			poly.shared= 2100+c;
+		}
+		if (poly.shared && poly.shared>=3000) {
+			poly.shared= 2100+getColor(poly);
+		}
+	}
+}
+
+let adjustPatchPolygons= function(model)
+{
+	let findVert= function(verts,v1) {
+		let tol= .001;
+		for (let i=0; i<verts.length; i++) {
+			let v= verts[i];
+			if (v.pos.x-tol<v1.pos.x && v1.pos.x<v.pos.x+tol &&
+			  v.pos.y-tol<v1.pos.y && v1.pos.y<v.pos.y+tol &&
+			  v.pos.z-tol<v1.pos.z && v1.pos.z<v.pos.z+tol)
+				return v;
+		}
+		return null;
+	}
+	let verts= [];
+	for (let i=0; i<model.polygons.length; i++) {
+		let poly= model.polygons[i];
+		for (let j=0; j<poly.vertices.length; j++) {
+			let vert= poly.vertices[j];
+			if (vert.cut)
+				verts.push(vert);
+		}
+	}
+	for (let pass=0; pass<1; pass++) {
+	for (let i=0; i<model.polygons.length; i++) {
+		let poly= model.polygons[i];
+		if (poly.shared && poly.shared>0 && poly.shared<=1024) {
+			let n= 0;
+			for (let j=0; j<poly.vertices.length; j++) {
+				let vert= poly.vertices[j];
+				if (vert.cut) {
+					n++;
+					continue;
+				}
+				let v1= findVert(verts,vert);
+				if (v1) {
+					n++;
+					vert.cut= v1.cut+1;
+				}
+			}
+			for (let j=0; n>0 && j<poly.vertices.length; j++) {
+				let vert= poly.vertices[j];
+				if (!vert.cut) {
+					vert.cut= pass+2;
+					verts.push(vert);
+				}
+			}
+		}
+	}
+	}
+	for (let i=0; i<model.polygons.length; i++) {
+		let poly= model.polygons[i];
+		if (poly.shared && poly.shared>0 && poly.shared<=1024) {
+			let n= 0;
+			for (let j=0; j<poly.vertices.length; j++) {
+				let vert= poly.vertices[j];
+				if (vert.cut) {
+					n++;
+				} else {
+					let v1= findVert(verts,vert);
+					if (v1) {
+						n++;
+						vert.cut= v1.cut+1;
+					}
+				}
+			}
+			if (n == 0) {
+				poly.shared= 0;
+			} else if (n < poly.vertices.length) {
+				for (let j=0; j<poly.vertices.length; j++) {
+					let vert= poly.vertices[j];
+					if (!vert.cut)
+						vert.pos.z-= .1;
+				}
+			}
+		}
+	}
+}
+
+let adjustPatchPolygons1= function(model,tile)
+{
+	for (let i=0; i<model.polygons.length; i++) {
+		let poly= model.polygons[i];
+		if (poly.shared && poly.shared>0 && poly.shared<=1024) {
+			let n= 0;
+			for (let j=0; j<poly.vertices.length; j++) {
+				let vert= poly.vertices[j];
+				if (vert.ij) {
+					let z= getTerrainElevation(vert.ij.i,
+					  vert.ij.j,tile,false);
+					if (z > vert.pos.z-.01)
+						n++;
+				}
+			}
+			if (n == poly.vertices.length)
+				poly.shared= 0;
+		}
+	}
 }

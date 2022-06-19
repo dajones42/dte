@@ -205,6 +205,8 @@ Open TDB: open an MSTS route TDB file.
 <li>
 Import CSV: load a track of latitude and longitude values from a csv file.
 <li>
+Export CSV: saves track latitude and longitude values from a csv file.
+<li>
 Save To Route: save data to MSTS route TDB, route tsection.dat and .w files.
 Also saves any modified elevation data.
 Only works with unicode .w files.
@@ -215,6 +217,15 @@ Rebuilds quad tree to match tiles.
 Save Tile Image: saves the background image for the tile currently at the
 center of the map as a terrain texture (saves .png file that needs to be
 converted to .ace).
+<li>
+Save Tile CutFill: creates cut/fill patch models for patches in the current
+tile are near to track or roads.  Saves the models as .obj files that can
+be converted into .s files.  Entries for these models will be added to the
+tile's world file.
+<li>
+Save Elevated Track: unused experimental feature.
+<li>
+Find Features: unused experimental feature.
 <le>
 <h4>Edit Menu</h4>
 <bl>
@@ -241,6 +252,11 @@ from other tracks.
 Calc.Elev.: marks the selected control point so that its elevation will be
 calculated so that the grade is the same on either side.
 <li>
+Bridge: set or unsets the bridge type field on the selected control point.
+<li>
+Overpass: toggles the overpass field on the selected control point.  This
+cuts back the fill from the overhead track or road.
+<li>
 Group: adds control points connected to the selected control point by a
 straight or switch to a group so that they can be moved and/or rotated
 together.
@@ -248,11 +264,30 @@ together.
 Change Switch Type: changes the selected switch to match the shape
 selected on the Options panel.
 <li>
+Switch Stand: toggles the side of track that has a switch stand for the
+selected switch.
+<li>
+Change Track Type: changes the selected track's type to match the Options panel.
+<li>
+Change Track Name: adds a name to the selected control point.
+<li>
+Set Length: moves the selected control point to adjust the distance to the
+next control point to match the Options panel setting.
+<li>
+Level Crossing: adjusts the elevation of the selected and next control point
+to be above the crossing track the distance specified on the Options panel.
+<li>
 Cut: lowers the ground elevation adjacent to track between the selected
 control point and the next control point, if necessary.
 <li>
 Fill&Cut: raises and then lowers the ground elevation adjacent to track
 between the selected control point and the next control point, if necessary.
+<li>
+Attach Model: attaches the shape file specified on the Options panel to the
+selected control point.
+<li>
+Attach Forest: attaches a forest to the selected control point using the
+details on the Options panel.
 <le>
 <h4>Map Menu</h4>
 <bl>
@@ -261,7 +296,24 @@ USGS Topo: use USGS topography maps for map background.
 <li>
 USGS Imagery: use USGS imagery for map background.
 <li>
+USGS ImageryTopo: use USGS imagery plus topography for map background.
+<li>
+USGS Hydro: use USGS hydro for map background.
+<li>
 Open Street Maps: use Open Street Map images for map background.
+<li>
+Route: unused experimental feature.
+<li>
+OSG Earth: use old USGS imagery saved using OSGEarth for map background.
+<li>
+OSG Earth/USGS Hydro: use OSGEarth plus USGS Hydro for map background.
+<li>
+Save Water: experimental feature to convert USGS Hydro map into track points.
+<li>
+Save Image: saves the current tiles map background as a png file.
+<li>
+Save Tile Colors: calculates color averages used by Save Tile CutFill to
+set patch model textures.
 <le>
 <input id="fileopen" type="file" style="display:none" accept=".json"/>
 <input id="fileopentdb" type="file" style="display:none" accept=".tdb"/>

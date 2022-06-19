@@ -136,6 +136,10 @@ let setupMenu= function() {
 		click: changeSwitchType
 	}));
 	editMenu.append(new nw.MenuItem({
+		label: 'Switch Stand',
+		click: toggleSwitchStand
+	}));
+	editMenu.append(new nw.MenuItem({
 		label: 'Change Track Type',
 		click: changeTrackType
 	}));

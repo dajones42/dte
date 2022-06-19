@@ -234,7 +234,10 @@ let renderMap= function()
 	}
 	for (let i=0; i<switches.length; i++) {
 		let sw= switches[i];
-		context.strokeStyle= "purple";
+		if (sw.switchStand)
+			context.strokeStyle= "brown";
+		else
+			context.strokeStyle= "purple";
 		context.beginPath();
 		for (let j=0; j<3; j++) {
 			let p= sw.points[(j+2)%3];

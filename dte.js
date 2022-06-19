@@ -2364,6 +2364,8 @@ let saveData= function(filename)
 			shapeID: sw.shapeID,
 			grade: sw.grade
 		};
+		if (sw.switchStand)
+			swtch.switchStand= true;
 		for (let j=0; j<sw.points.length; j++) {
 			let p= sw.points[j];
 			swtch.points.push({
@@ -2465,7 +2467,9 @@ let readData= function(filename)
 			grade: 0
 		};
 		if (dSwitch.grade)
-			sw.grade= dSwitch.grade
+			sw.grade= dSwitch.grade;
+		if (dSwitch.switchStand)
+			sw.switchStand= dSwitch.switchStand;
 		for (let j=0; j<dSwitch.points.length; j++) {
 			let sp= dSwitch.points[j];
 			let cp= tracks[sp.track].controlPoints[sp.point];
@@ -2802,6 +2806,15 @@ let changeSwitchType= function()
 	calcSwitchOffsets(sw);
 	calcTrack();
 	renderCanvas();
+}
+
+//	Implements the Edit menu Switch Stand feature
+let toggleSwitchStand= function()
+{
+	if (!selected || !selected.sw)
+		return;
+	let sw= selected.sw;
+	sw.switchStand= !sw.switchStand;
 }
 
 //	Implements the Edit menu Change Track Type feature
@@ -3284,6 +3297,8 @@ let setCrossingLevel= function()
 	let de= 0;
 	let dot= 0;
 	let grade= 0;
+	let s= 0;
+	let left= false;
 	let n= 0;
 	for (let i=0; i<tracks.length; i++) {
 		let track= tracks[i];
@@ -3307,19 +3322,19 @@ let setCrossingLevel= function()
 			let e1= interpElevation(selected,cp2,pi.s);
 			let e2= interpElevation(cp,cp1,pi.t);
 			de+= (e2-e1);
+			grade+= cp.trackGrade;
 			if (triArea(selected.position.x,selected.position.y,
 			  cp2.position.x,cp2.position.y,
 			  cp.position.x,cp.position.y) > 0)
-				grade-= cp.trackGrade;
-			else
-				grade+= cp.trackGrade;
-			dot+= selected.direction.dot(cp.direction);
+				left= true;
+			dot+= pi.dot;
+			s+= pi.s;
 			n++;
 			console.log("crossing pi "+pi.x+" "+pi.y+" "+e1+" "+e2+
 			 " "+i+" "+j+" "+pi.s+" "+pi.t+" "+
 			 triArea(selected.position.x,selected.position.y,
 			  cp2.position.x,cp2.position.y,
-			  cp.position.x,cp.position.y)+" "+cp.grade+" "+dot);
+			  cp.position.x,cp.position.y)+" "+grade+" "+dot);
 //			return;
 		}
 	}
@@ -3327,19 +3342,24 @@ let setCrossingLevel= function()
 		de/= n;
 		grade/= n;
 		dot/= n;
+		s/= n;
 		let offset=
 		  parseFloat(document.getElementById("crossingoffset").value);
-		de+= offset;
+		de+= offset -
+		  s*dot*grade*(cp2.distance-selected.distance);
 		selected.position.z+= de;
 		cp2.position.z= selected.position.z +
 		  dot*grade*(cp2.distance-selected.distance);
 		let sn= Math.sqrt(1-dot*dot);
+		if (left)
+			sn= -sn;
 		selected.dzdw= grade*sn;
 		cp2.dzdw= grade*sn;
 		calcTrack();
 		renderCanvas();
 		console.log("crossing de "+de+" "+grade+" "+offset+" "+
-		  dot+" "+sn+" "+selected.position.z+" "+cp2.position.z);
+		  dot+" "+sn+" "+selected.position.z+" "+cp2.position.z+" "+s+
+		  " "+left);
 	}
 }
 
@@ -3367,9 +3387,12 @@ let trackElevation= function(track,cp0,cp1,a)
 
 let trackTrackInt= function(track1,track2,cp11,cp12,cp21,cp22)
 {
-	if (cp11.straight && cp21.straight)
-		return segSegInt(cp11.position,cp12.position,
+	if (cp11.straight && cp21.straight) {
+		let pi= segSegInt(cp11.position,cp12.position,
 		  cp21.position,cp22.position);
+		pi.dot= cp11.direction.dot(cp21.direction);
+		return pi;
+	}
 	let trackPoints1= track1.trackPoints;
 	let trackPoints2= track2.trackPoints;
 	let d1= 0;
@@ -3393,6 +3416,11 @@ let trackTrackInt= function(track1,track2,cp11,cp12,cp21,cp22)
 				pi.s= 1;
 			if (pi.t > 1)
 				pi.t= 1;
+			let dir1= tp12.clone().sub(tp11);
+			let dir2= tp22.clone().sub(tp21);
+			dir1.normalize();
+			dir2.normalize();
+			pi.dot= dir1.dot(dir2);
 			return pi;
 		}
 		d1+= tp12.distanceTo(tp11);

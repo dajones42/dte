@@ -1637,9 +1637,12 @@ let writeWorldFile= function(tile)
 			  null,"utf16le");
 			fs.writeSync(fd,"\t\tCollideFlags ( 583 )\r\n",
 			  null,"utf16le");
-			fs.writeSync(fd,"\t\tFileName ( "+
-			  trackDB.tSection.shapes[model.shape].filename+
-			  " )\r\n",
+			let name= trackDB.tSection.shapes[model.shape].filename;
+			if (model.switchStand) {
+				name= name.replace(".s","s.s");
+				console.log("switchstand "+name);
+			}
+			fs.writeSync(fd,"\t\tFileName ( "+name+" )\r\n",
 			  null,"utf16le");
 			fs.writeSync(fd,"\t\tStaticFlags ( 00200100 )\r\n",
 			  null,"utf16le");
@@ -2178,6 +2181,7 @@ let saveToRoute= function()
 		tdb.nodes[node.id]= node;
 		node.unk2= 0;
 		node.shape= sw.shapeID;
+		node.switchStand= sw.switchStand;
 		node.manual= 1;
 		setUid(node,sw.points[0],sw.grade);
 		let tile= findTile(node.wftx,node.wftz);
@@ -4052,7 +4056,7 @@ let writeCsgObj= function(filename,model,pi,pj,patchImages)
 		id0+= verts.length;
 	}
 	fs.closeSync(fd);
-	console.log("close "+filename);
+	console.log("close "+filename+" "+id0);
 	return true;
 }
 
@@ -4215,20 +4219,26 @@ let overrideSwitchShapes= function()
 	  trackDB.tSection.shapes[32310].filename;
 	trackDB.tSection.shapes[38051].filename=
 	  trackDB.tSection.shapes[32311].filename;
-	trackDB.tSection.shapes[38052].filename= "SR_1tSwt_w_m06dL.s";
+//	trackDB.tSection.shapes[38052].filename= "SR_1tSwt_w_m06dL.s";
 //	trackDB.tSection.shapes[38052].filename= "SR_1tSwt_w_im06dL_NS.s";
 //	  trackDB.tSection.shapes[23406].filename;
 //	  trackDB.tSection.shapes[32248].filename;
-	trackDB.tSection.shapes[38053].filename= "SR_1tSwt_w_m06dR.s";
+//	trackDB.tSection.shapes[38053].filename= "SR_1tSwt_w_m06dR.s";
 //	trackDB.tSection.shapes[38053].filename= "SR_1tSwt_w_im06dR_NS.s";
 //	  trackDB.tSection.shapes[23407].filename;
 //	  trackDB.tSection.shapes[32249].filename;
-	trackDB.tSection.shapes[22697].filename= "SR_1tSwt_w_m06dL_Div.s";
-	trackDB.tSection.shapes[22698].filename= "SR_1tSwt_w_m06dR_Div.s";
-	let derail= "..\\\\..\\\\ROUTES\\\\stjlc\\\\SHAPES\\\\derail.s";
-	trackDB.tSection.shapes[39829].filename= derail;
-	trackDB.tSection.shapes[39830].filename= derail;
-	trackDB.tSection.shapes[24799].filename= derail;
+//	trackDB.tSection.shapes[22697].filename= "SR_1tSwt_w_m06dL_Div.s";
+//	trackDB.tSection.shapes[22698].filename= "SR_1tSwt_w_m06dR_Div.s";
+	let routeShapes= "..\\\\..\\\\ROUTES\\\\stjlc\\\\SHAPES\\\\";
+	trackDB.tSection.shapes[38052].filename= routeShapes+"switch06l.s";
+	trackDB.tSection.shapes[38053].filename= routeShapes+"switch06r.s";
+	trackDB.tSection.shapes[22697].filename= routeShapes+"switch06ld.s";
+	trackDB.tSection.shapes[22698].filename= routeShapes+"switch06rd.s";
+	trackDB.tSection.shapes[32246].filename= routeShapes+"switch06lx.s";
+	trackDB.tSection.shapes[32247].filename= routeShapes+"switch06rx.s";
+	trackDB.tSection.shapes[39829].filename= routeShapes+"derail.s";
+	trackDB.tSection.shapes[39830].filename= routeShapes+"derail.s";
+	trackDB.tSection.shapes[24799].filename= routeShapes+"derail.s";
 }
 
 let addModel= function(filename,x,y,z,dx,dy,grade) {
@@ -4894,7 +4904,7 @@ let makeWaterModel= function(track)
 
 let saveSwitchExt= function(sw,id)
 {
-	let filename= "switch" + id.toFixed(0);
+	let filename= "switchext" + id.toFixed(0);
 	console.log("swext "+filename);
 	let paths= [];
 	for (let i=1; i<sw.points.length; i++) {

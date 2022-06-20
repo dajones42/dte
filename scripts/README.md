@@ -42,3 +42,4 @@ guard rails.
 
 - switch06rx.json: points only 6 degree right switch.
 
+- derail.json: a split point derail used on the stjlc route.

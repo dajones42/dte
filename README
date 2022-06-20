@@ -1,6 +1,13 @@
 Dynamic Track Editor
 
-A different kind of Microsoft Train Simulator route editor.
+This is an Open Rails route editor that uses dynamic track for all track
+except switches.  I've been using it to build the route in my stjlc repository.
+As is it will only work for routes developed from scratch using it.  A lot
+of route information is saved in a json file which is exported to the
+.tdb and world files by the Save to Route feature.  Some features might
+only work for the stjlc.
+
+See help at the bottom of main page (dte.html).
 
 This program is designed to be run with NW.js which is available at
 https://nwjs.io.  Testing was done using NW.js v0.33.4.

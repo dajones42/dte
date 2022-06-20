@@ -1,0 +1,26 @@
+{
+ "filename": "derail.s",
+ "mainroute": 0,
+ "derail": "left",
+ "switchstand": {
+  "file": "switchstand.blend",
+  "position": [ 2.2, 0.48, 0.16 ],
+  "rotation": 90
+ },
+ "paths": [
+  {
+   "start": [ 0, 0, 0 ],
+   "angle": 0,
+   "moves": [
+    [ 101.0, -3 ]
+   ]
+  },
+  {
+   "start": [ 0, 0, 0 ],
+   "angle": 0,
+   "moves": [
+    [ 10, 0 ]
+   ]
+  }
+ ]
+}

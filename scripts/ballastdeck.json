@@ -1,0 +1,218 @@
+{
+ "Name": "Ballast Deck Bridge US Tracks dynamic track profile",
+ "LODs": [
+ {
+  "CutoffRadius": 2000,
+   "Name": "Ballast",
+   "TexName": "US_Track3.ace",
+   "ShaderName": "TexDiff",
+   "LightModelName": "OptSpecular0",
+   "MipMapLevelOfDetailBias": -1,
+   "Polylines": [ {
+    "Name": "ballast",
+    "DeltaTexCoord": [ 0, 0.2 ],
+    "Vertices": [
+     { "Position": [ -1.45, 0.15 ], "TexCoord": [ 0.666, 0 ] },
+     { "Position": [ 0, 0.15 ], "TexCoord": [ 0.375, 0 ] },
+     { "Position": [ 1.45, 0.15 ], "TexCoord": [ 0.084, 0 ] }
+    ]
+    } ]
+  },
+ {
+  "CutoffRadius": 1000,
+   "Name": "Ties",
+   "TexName": "US_Track3s.ace",
+   "ShaderName": "BlendATexDiff",
+   "LightModelName": "OptSpecular0",
+   "MipMapLevelOfDetailBias": -1,
+   "Polylines": [ {
+    "Name": "ties",
+    "DeltaTexCoord": [ 0, 0.2 ],
+    "Vertices": [
+     { "Position": [ -1.35, 0.152 ], "TexCoord": [ 0.6457, 0 ] },
+     { "Position": [ 1.35, 0.152 ], "TexCoord": [ 0.1043, 0 ] }
+    ]
+    } ]
+  },
+ {
+  "CutoffRadius": 700,
+   "Name": "Railsides",
+   "TexName": "US_Rails3.ace",
+   "ShaderName": "TexDiff",
+   "LightModelName": "OptSpecular0",
+   "MipMapLevelOfDetailBias": 0,
+   "Polylines": [
+   {
+    "Name": "left_outer",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ -0.7620, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
+     { "Position": [ -0.7895, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
+    ]
+    },
+   {
+    "Name": "left_inner",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ -0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
+     { "Position": [ -0.7450, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
+    ]
+    },
+   {
+    "Name": "right_inner",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ 0.7450, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
+     { "Position": [ 0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
+    ]
+    },
+   {
+    "Name": "right_outer",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ 0.7895, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
+     { "Position": [ 0.7620, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
+    ]
+    },
+   {
+    "Name": "left base",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ -0.8285, 0.153 ], "TexCoord": [ 0, -0.7793 ] },
+     { "Position": [ -0.8285, 0.170 ], "TexCoord": [ 0, -0.7930 ] },
+     { "Position": [ -0.7535, 0.187 ], "TexCoord": [ 0, -0.8414 ] },
+     { "Position": [ -0.6785, 0.170 ], "TexCoord": [ 0, -0.7930 ] },
+     { "Position": [ -0.6785, 0.153 ], "TexCoord": [ 0, -0.7793 ] }
+    ]
+    },
+   {
+    "Name": "right base",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ 0.6785, 0.153 ], "TexCoord": [ 0, -0.7793 ] },
+     { "Position": [ 0.6785, 0.170 ], "TexCoord": [ 0, -0.7930 ] },
+     { "Position": [ 0.7535, 0.187 ], "TexCoord": [ 0, -0.8414 ] },
+     { "Position": [ 0.8285, 0.170 ], "TexCoord": [ 0, -0.7930 ] },
+     { "Position": [ 0.8285, 0.153 ], "TexCoord": [ 0, -0.7793 ] }
+    ]
+    }
+   ]
+  },
+ {
+  "CutoffRadius": 1200,
+   "Name": "Railtops",
+   "TexName": "US_Rails3.ace",
+   "ShaderName": "TexDiff",
+   "LightModelName": "OptSpecular25",
+   "MipMapLevelOfDetailBias": 0,
+   "Polylines": [
+   {
+    "Name": "right",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ -0.7895, 0.325 ], "TexCoord": [ 0, -0.9883 ] },
+     { "Position": [ -0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
+    ]
+    },
+   {
+    "Name": "left",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ 0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
+     { "Position": [ 0.7895, 0.325 ], "TexCoord": [ 0, -0.9883 ] }
+    ]
+    }
+   ]
+  },
+ {
+  "CutoffRadius": 700,
+   "Name": "guard Railsides",
+   "TexName": "US_Rails3.ace",
+   "ShaderName": "TexDiff",
+   "LightModelName": "OptSpecular0",
+   "MipMapLevelOfDetailBias": 0,
+   "Polylines": [
+   {
+    "Name": "left_outer",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ -0.487, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
+     { "Position": [ -0.514, 0.311 ], "TexCoord": [ 0, -0.9336 ] }
+    ]
+    },
+   {
+    "Name": "left_inner",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ -0.456, 0.311 ], "TexCoord": [ 0, -0.9336 ] },
+     { "Position": [ -0.483, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
+    ]
+    },
+   {
+    "Name": "right_inner",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ 0.483, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
+     { "Position": [ 0.456, 0.311 ], "TexCoord": [ 0, -0.9336 ] }
+    ]
+    },
+   {
+    "Name": "right_outer",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ 0.514, 0.311 ], "TexCoord": [ 0, -0.9336 ] },
+     { "Position": [ 0.487, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
+    ]
+    },
+   {
+    "Name": "left base",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ -0.550, 0.153 ], "TexCoord": [ 0, -0.7793 ] },
+     { "Position": [ -0.550, 0.170 ], "TexCoord": [ 0, -0.7930 ] },
+     { "Position": [ -0.485, 0.187 ], "TexCoord": [ 0, -0.8414 ] },
+     { "Position": [ -0.410, 0.170 ], "TexCoord": [ 0, -0.7930 ] },
+     { "Position": [ -0.410, 0.153 ], "TexCoord": [ 0, -0.7793 ] }
+    ]
+    },
+   {
+    "Name": "right base",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ 0.410, 0.153 ], "TexCoord": [ 0, -0.7793 ] },
+     { "Position": [ 0.410, 0.170 ], "TexCoord": [ 0, -0.7930 ] },
+     { "Position": [ 0.485, 0.187 ], "TexCoord": [ 0, -0.8414 ] },
+     { "Position": [ 0.550, 0.170 ], "TexCoord": [ 0, -0.7930 ] },
+     { "Position": [ 0.550, 0.153 ], "TexCoord": [ 0, -0.7793 ] }
+    ]
+    }
+   ]
+  },
+ {
+  "CutoffRadius": 1200,
+   "Name": "guard Railtops",
+   "TexName": "US_Rails3.ace",
+   "ShaderName": "TexDiff",
+   "LightModelName": "OptSpecular0",
+   "MipMapLevelOfDetailBias": 0,
+   "Polylines": [
+   {
+    "Name": "right",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ -0.514, 0.311 ], "TexCoord": [ 0, 0.9883 ] },
+     { "Position": [ -0.456, 0.311 ], "TexCoord": [ 0, 0.9336 ] }
+    ]
+    },
+   {
+    "Name": "left",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ 0.456, 0.311 ], "TexCoord": [ 0, 0.9336 ] },
+     { "Position": [ 0.514, 0.311 ], "TexCoord": [ 0, 0.9883 ] }
+    ]
+    }
+   ]
+  }
+ ]
+}

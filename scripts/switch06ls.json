@@ -1,0 +1,25 @@
+{
+ "filename": "switch06ls.s",
+ "mainroute": 1,
+ "switchstand": {
+  "file": "switchstand.blend",
+  "position": [ 2.2, 0.48, 0.16 ],
+  "rotation": 90
+ },
+ "paths": [
+  {
+   "start": [ 0, 0, 0 ],
+   "angle": 0,
+   "moves": [
+    [ 101.2882, -11.2768 ]
+   ]
+  },
+  {
+   "start": [ 0, 0, 0 ],
+   "angle": 0,
+   "moves": [
+    [ 20, 0 ]
+   ]
+  }
+ ]
+}

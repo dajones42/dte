@@ -1,0 +1,412 @@
+{
+ "Name": "US Tracks track profile",
+ "gauge": 1.435,
+ "railhead": 0.072,
+ "flangeway": 0.050,
+ "parts": true,
+ "LODs": [
+ {
+  "CutoffRadius": 2000,
+   "Name": "Ballast",
+   "TexName": "US_Track3.ace",
+   "ShaderName": "BlendATexDiff",
+   "LightModelName": "OptSpecular0",
+   "MipMapLevelOfDetailBias": -1,
+   "Polylines": [ {
+    "Name": "ballast",
+    "part": "ballast",
+    "DeltaTexCoord": [ 0, 0.2 ],
+    "Vertices": [
+     { "Position": [ -2.6, -0.2 ], "TexCoord": [ 0.862, 0 ] },
+     { "Position": [ -1.7, 0.136 ], "TexCoord": [ 0.7158, 0 ] }
+    ]
+   },
+   {
+    "Name": "ballast",
+    "part": "ballast",
+    "DeltaTexCoord": [ 0, 0.2 ],
+    "Vertices": [
+     { "Position": [ 1.7, 0.136 ], "TexCoord": [ 0.0342, 0 ] },
+     { "Position": [ 2.6, -0.2 ], "TexCoord": [ -0.1389, 0 ] }
+    ]
+   }
+  ]
+ },
+ {
+  "CutoffRadius": 2000,
+   "Name": "Ballast",
+   "TexName": "US_Track3.ace",
+   "ShaderName": "TexDiff",
+   "LightModelName": "OptSpecular0",
+   "MipMapLevelOfDetailBias": -1,
+   "Polylines": [ {
+    "Name": "ballast",
+    "part": "ballast",
+    "DeltaTexCoord": [ 0, 0.2 ],
+    "Vertices": [
+     { "Position": [ -1.7, 0.136 ], "TexCoord": [ 0.7158, 0 ] },
+     { "Position": [ -1.3, 0.136 ], "TexCoord": [ 0.6357, 0 ] },
+     { "Position": [ 0, 0.138 ], "TexCoord": [ 0.375, 0 ] },
+     { "Position": [ 1.3, 0.136 ], "TexCoord": [ 0.1143, 0 ] },
+     { "Position": [ 1.7, 0.136 ], "TexCoord": [ 0.0342, 0 ] }
+    ]
+   } ]
+ },
+ {
+  "CutoffRadius": 1000,
+   "Name": "Ties",
+   "TexName": "US_Track3s.ace",
+   "ShaderName": "BlendATexDiff",
+   "LightModelName": "OptSpecular0",
+   "MipMapLevelOfDetailBias": -1,
+   "Polylines": [ {
+    "Name": "ties",
+    "part": "ties",
+    "DeltaTexCoord": [ 0, 0.2 ],
+    "Vertices": [
+     { "Position": [ -1.35, 0.152 ], "TexCoord": [ 0.6457, 0 ] },
+     { "Position": [ 0, 0.154 ], "TexCoord": [ 0.375, 0 ] },
+     { "Position": [ 1.35, 0.152 ], "TexCoord": [ 0.1043, 0 ] }
+    ]
+   } ]
+ },
+ {
+  "CutoffRadius": 700,
+   "Name": "Railsides",
+   "TexName": "US_Rails3.ace",
+   "ShaderName": "TexDiff",
+   "LightModelName": "OptSpecular0",
+   "MipMapLevelOfDetailBias": 0,
+   "Polylines": [
+   {
+    "Name": "left_outer",
+    "part": "leftrail",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ -0.7620, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
+     { "Position": [ -0.7895, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
+    ]
+   },
+   {
+    "Name": "left_outer",
+    "part": "leftfrograil",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ -0.7620, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
+     { "Position": [ -0.7895, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
+    ],
+    "vertices0": [
+     { "Position": [ -0.7175, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
+     { "Position": [ -0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
+    ]
+   },
+   {
+    "Name": "left_inner",
+    "part": "leftrail",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ -0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
+     { "Position": [ -0.7450, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
+    ],
+    "verticesn": [
+     { "Position": [ -0.7895, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
+     { "Position": [ -0.7895, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
+    ]
+   },
+   {
+    "Name": "left_inner",
+    "part": "leftfrograil",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ -0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
+     { "Position": [ -0.7450, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
+    ]
+   },
+   {
+    "Name": "right_inner",
+    "part": "rightrail",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ 0.7450, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
+     { "Position": [ 0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
+    ],
+    "verticesn": [
+     { "Position": [ 0.7895, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
+     { "Position": [ 0.7895, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
+    ]
+   },
+   {
+    "Name": "right_inner",
+    "part": "rightfrograil",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ 0.7450, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
+     { "Position": [ 0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
+    ]
+   },
+   {
+    "Name": "right_outer",
+    "part": "rightrail",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ 0.7895, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
+     { "Position": [ 0.7620, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
+    ]
+   },
+   {
+    "Name": "right_outer",
+    "part": "rightfrograil",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ 0.7895, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
+     { "Position": [ 0.7620, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
+    ],
+    "vertices0": [
+     { "Position": [ 0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
+     { "Position": [ 0.7175, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
+    ]
+   },
+   {
+    "Name": "left base",
+    "part": "leftrail",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ -0.8285, 0.153 ], "TexCoord": [ 0, -0.7793 ] },
+     { "Position": [ -0.8285, 0.170 ], "TexCoord": [ 0, -0.7930 ] },
+     { "Position": [ -0.7535, 0.187 ], "TexCoord": [ 0, -0.8414 ] },
+     { "Position": [ -0.6785, 0.170 ], "TexCoord": [ 0, -0.7930 ] },
+     { "Position": [ -0.6785, 0.153 ], "TexCoord": [ 0, -0.7793 ] }
+    ]
+   },
+   {
+    "Name": "left base",
+    "part": "leftfrograil",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ -0.8285, 0.153 ], "TexCoord": [ 0, -0.7793 ] },
+     { "Position": [ -0.8285, 0.170 ], "TexCoord": [ 0, -0.7930 ] },
+     { "Position": [ -0.7535, 0.187 ], "TexCoord": [ 0, -0.8414 ] },
+     { "Position": [ -0.6785, 0.170 ], "TexCoord": [ 0, -0.7930 ] },
+     { "Position": [ -0.6785, 0.153 ], "TexCoord": [ 0, -0.7793 ] }
+    ]
+   },
+   {
+    "Name": "right base",
+    "part": "rightrail",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ 0.6785, 0.153 ], "TexCoord": [ 0, -0.7793 ] },
+     { "Position": [ 0.6785, 0.170 ], "TexCoord": [ 0, -0.7930 ] },
+     { "Position": [ 0.7535, 0.187 ], "TexCoord": [ 0, -0.8414 ] },
+     { "Position": [ 0.8285, 0.170 ], "TexCoord": [ 0, -0.7930 ] },
+     { "Position": [ 0.8285, 0.153 ], "TexCoord": [ 0, -0.7793 ] }
+    ]
+   },
+   {
+    "Name": "right base",
+    "part": "rightfrograil",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ 0.6785, 0.153 ], "TexCoord": [ 0, -0.7793 ] },
+     { "Position": [ 0.6785, 0.170 ], "TexCoord": [ 0, -0.7930 ] },
+     { "Position": [ 0.7535, 0.187 ], "TexCoord": [ 0, -0.8414 ] },
+     { "Position": [ 0.8285, 0.170 ], "TexCoord": [ 0, -0.7930 ] },
+     { "Position": [ 0.8285, 0.153 ], "TexCoord": [ 0, -0.7793 ] }
+    ]
+   }
+   ]
+  },
+ {
+  "CutoffRadius": 1200,
+   "Name": "Railtops",
+   "TexName": "US_Rails3.ace",
+   "ShaderName": "TexDiff",
+   "LightModelName": "OptSpecular25",
+   "MipMapLevelOfDetailBias": 0,
+   "Polylines": [
+   {
+    "Name": "right",
+    "part": "rightrail",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ 0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
+     { "Position": [ 0.7895, 0.325 ], "TexCoord": [ 0, -0.9883 ] }
+    ],
+    "verticesn": [
+     { "Position": [ 0.7895, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
+     { "Position": [ 0.7895, 0.325 ], "TexCoord": [ 0, -0.9883 ] }
+    ]
+   },
+   {
+    "Name": "right",
+    "part": "rightfrograil",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ 0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
+     { "Position": [ 0.7895, 0.325 ], "TexCoord": [ 0, -0.9883 ] }
+    ],
+    "vertices0": [
+     { "Position": [ 0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
+     { "Position": [ 0.7175, 0.325 ], "TexCoord": [ 0, -0.9883 ] }
+    ]
+   },
+   {
+    "Name": "left",
+    "part": "leftrail",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ -0.7895, 0.325 ], "TexCoord": [ 0, -0.9883 ] },
+     { "Position": [ -0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
+    ],
+    "verticesn": [
+     { "Position": [ -0.7895, 0.325 ], "TexCoord": [ 0, -0.9883 ] },
+     { "Position": [ -0.7895, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
+    ]
+   },
+   {
+    "Name": "left",
+    "part": "leftfrograil",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ -0.7895, 0.325 ], "TexCoord": [ 0, -0.9883 ] },
+     { "Position": [ -0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
+    ],
+    "vertices0": [
+     { "Position": [ -0.7175, 0.325 ], "TexCoord": [ 0, -0.9883 ] },
+     { "Position": [ -0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
+    ]
+    }
+   ]
+  },
+  {
+   "CutoffRadius": 700,
+   "Name": "guard Railsides",
+   "TexName": "US_Rails3.ace",
+   "ShaderName": "TexDiff",
+   "LightModelName": "OptSpecular0",
+   "MipMapLevelOfDetailBias": 0,
+   "Polylines": [
+   {
+    "Name": "left_outer",
+    "part": "leftguardrail",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ -0.6405, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
+     { "Position": [ -0.6675, 0.322 ], "TexCoord": [ 0, -0.9336 ] }
+    ],
+    "vertices0": [
+     { "Position": [ -0.6405, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
+     { "Position": [ -0.5955, 0.322 ], "TexCoord": [ 0, -0.9336 ] }
+    ],
+    "verticesn": [
+     { "Position": [ -0.6405, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
+     { "Position": [ -0.5955, 0.322 ], "TexCoord": [ 0, -0.9336 ] }
+    ]
+    },
+   {
+    "Name": "left_inner",
+    "part": "leftguardrail",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ -0.5955, 0.322 ], "TexCoord": [ 0, -0.9336 ] },
+     { "Position": [ -0.6225, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
+    ]
+    },
+   {
+    "Name": "right_inner",
+    "part": "rightguardrail",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ 0.6225, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
+     { "Position": [ 0.5955, 0.322 ], "TexCoord": [ 0, -0.9336 ] }
+    ]
+    },
+   {
+    "Name": "right_outer",
+    "part": "rightguardrail",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ 0.6675, 0.322 ], "TexCoord": [ 0, -0.9336 ] },
+     { "Position": [ 0.6405, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
+    ],
+    "vertices0": [
+     { "Position": [ 0.5955, 0.322 ], "TexCoord": [ 0, -0.9336 ] },
+     { "Position": [ 0.6405, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
+    ],
+    "verticesn": [
+     { "Position": [ 0.5955, 0.322 ], "TexCoord": [ 0, -0.9336 ] },
+     { "Position": [ 0.6405, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
+    ]
+    },
+   {
+    "Name": "left base",
+    "part": "leftguardrail",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ -0.7065, 0.153 ], "TexCoord": [ 0, -0.7793 ] },
+     { "Position": [ -0.7065, 0.170 ], "TexCoord": [ 0, -0.7930 ] },
+     { "Position": [ -0.6315, 0.187 ], "TexCoord": [ 0, -0.8414 ] },
+     { "Position": [ -0.5565, 0.170 ], "TexCoord": [ 0, -0.7930 ] },
+     { "Position": [ -0.5565, 0.153 ], "TexCoord": [ 0, -0.7793 ] }
+    ]
+    },
+   {
+    "Name": "right base",
+    "part": "rightguardrail",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ 0.5565, 0.153 ], "TexCoord": [ 0, -0.7793 ] },
+     { "Position": [ 0.5565, 0.170 ], "TexCoord": [ 0, -0.7930 ] },
+     { "Position": [ 0.6315, 0.187 ], "TexCoord": [ 0, -0.8414 ] },
+     { "Position": [ 0.7065, 0.170 ], "TexCoord": [ 0, -0.7930 ] },
+     { "Position": [ 0.7065, 0.153 ], "TexCoord": [ 0, -0.7793 ] }
+    ]
+    }
+   ]
+  },
+ {
+  "CutoffRadius": 1200,
+   "Name": "guard Railtops",
+   "TexName": "US_Rails3.ace",
+   "ShaderName": "TexDiff",
+   "LightModelName": "OptSpecular0",
+   "MipMapLevelOfDetailBias": 0,
+   "Polylines": [
+   {
+    "Name": "right",
+    "part": "rightguardrail",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ 0.5955, 0.322 ], "TexCoord": [ 0, 0.9336 ] },
+     { "Position": [ 0.6675, 0.322 ], "TexCoord": [ 0, 0.9883 ] }
+    ],
+    "vertices0": [
+     { "Position": [ 0.5955, 0.322 ], "TexCoord": [ 0, 0.9336 ] },
+     { "Position": [ 0.5955, 0.322 ], "TexCoord": [ 0, 0.9883 ] }
+    ],
+    "verticesn": [
+     { "Position": [ 0.5955, 0.322 ], "TexCoord": [ 0, 0.9336 ] },
+     { "Position": [ 0.5955, 0.322 ], "TexCoord": [ 0, 0.9883 ] }
+    ]
+    },
+   {
+    "Name": "left",
+    "part": "leftguardrail",
+    "DeltaTexCoord": [ 2, 0 ],
+    "Vertices": [
+     { "Position": [ -0.6675, 0.322 ], "TexCoord": [ 0, 0.9883 ] },
+     { "Position": [ -0.5955, 0.322 ], "TexCoord": [ 0, 0.9336 ] }
+    ],
+    "vertices0": [
+     { "Position": [ -0.5955, 0.322 ], "TexCoord": [ 0, 0.9883 ] },
+     { "Position": [ -0.5955, 0.322 ], "TexCoord": [ 0, 0.9336 ] }
+    ],
+    "verticesn": [
+     { "Position": [ -0.5955, 0.322 ], "TexCoord": [ 0, 0.9883 ] },
+     { "Position": [ -0.5955, 0.322 ], "TexCoord": [ 0, 0.9336 ] }
+    ]
+    }
+   ]
+  }
+ ]
+}

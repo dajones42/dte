@@ -1,0 +1,12 @@
+for F in TILES/*.obj
+do
+	SFILE=`echo $F|sed s/TILES/SHAPES/|sed s/-/t-/|sed s/obj$/s/`
+	if [ $F -nt $SFILE ]
+	then
+		ls -l $F
+		ls -l $SFILE
+#		echo $SFILE
+		blender -b --python tobj2s.py -- $F
+		./compressshape $SFILE
+	fi
+done

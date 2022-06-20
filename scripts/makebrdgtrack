@@ -1,0 +1,21 @@
+cd SHAPES
+for F in brdgtrackbd*.json
+do
+	blender -b --python ../trackshape.py -- $F ../ballastdeck.json
+done
+for F in brdgtracktd*.json
+do
+	blender -b --python ../trackshape.py -- $F ../bridgerails.json
+done
+for F in switchext*.json
+do
+	blender -b --python ../trackshape.py -- $F ../ustracks.json
+done
+for F in brdgtracktd*.s
+do
+	../compressshape $F
+done
+for F in switchext*.s
+do
+	../compressshape $F
+done

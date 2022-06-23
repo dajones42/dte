@@ -28,7 +28,7 @@ guard rails.
 
 - switch06l.json: 6 degree left switch with switch stand on curved side.
 
-- switch06d.json: 6 degree left switch with curved main route.
+- switch06ld.json: 6 degree left switch with curved main route.
 
 - switch06ls.json: 6 degree left switch with switch stand on straight side.
 

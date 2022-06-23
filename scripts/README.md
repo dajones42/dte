@@ -12,17 +12,17 @@ by dte into .s files.
 and curved switches.
 
 - trackshape.py: Blender python script used to create track shape file given
-a shape track path file and a track profile file.
+a track path file and a track profile file.
 
 ## Track Profile Files
 
-- ustrack.json: US Tracks track profile file used to normal track and
+- ustracks.json: US Tracks track profile file used to create normal track and
 custom switches.
 
 - ballastdeck.json: US Tracks track profile with narrow ballast and bridge
 guard rails.
 
-- bridgerails.json: US Tracks track profile with rails only.
+- bridgerails.json: US Tracks track profile with bridge rails only.
 
 ## Switch Track Shapes
 
@@ -43,3 +43,5 @@ guard rails.
 - switch06rx.json: points only 6 degree right switch.
 
 - derail.json: a split point derail used on the stjlc route.
+
+- switchstand.blend: blender switch stand model used by other files.

@@ -20,7 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-//	interrupted Goode Hololosine map projection
+//	interrupted Goode Homolosine map projection
 //	proj4js doesn't appear to support +proj=igh
 //	forward and inverse functions should work like proj4js
 

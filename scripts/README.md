@@ -1,5 +1,7 @@
 This directory contains scripts and input files used outside of dte to create
 shape files.
+The scripts are known to work with blender 2.82.
+Wayne Campbell's shape export plugin is required.
 
 ## Scripts
 
@@ -16,6 +18,11 @@ a track path file and a track profile file.
 
 ## Track Profile Files
 
+These files contain information similar to the Open Rails dynamic track
+profile in the TrProfile.stf file.
+The order of verticies is important, normals will be flipped is they are listed
+backwards.
+
 - ustracks.json: US Tracks track profile file used to create normal track and
 custom switches.
 
@@ -26,22 +33,33 @@ guard rails.
 
 ## Switch Track Shapes
 
-- switch06l.json: 6 degree left switch with switch stand on curved side.
+These files contain information similar to track shapes in the global
+tsection.dat file.
+Paths must be listed in left to right order.
 
-- switch06ld.json: 6 degree left switch with curved main route.
+- switch06l.json: 6 degree left switch with switch stand on curved side
+(track shape 38052).
 
-- switch06ls.json: 6 degree left switch with switch stand on straight side.
+- switch06ld.json: 6 degree left switch with curved main route
+(track shape 22697).
 
-- switch06lx.json: points only 6 degree left switch.
+- switch06ls.json: 6 degree left switch with switch stand on straight side
+(track shape 38052).
 
-- switch06r.json: 6 degree right switch with switch stand on curved side.
+- switch06lx.json: points only 6 degree left switch (track shape 39829).
 
-- switch06rd.json: 6 degree right switch with curved main route.
+- switch06r.json: 6 degree right switch with switch stand on curved side
+(track shape 38053).
 
-- switch06rs.json: 6 degree right switch with switch stand on straight side.
+- switch06rd.json: 6 degree right switch with curved main route
+(track shape 22698).
 
-- switch06rx.json: points only 6 degree right switch.
+- switch06rs.json: 6 degree right switch with switch stand on straight side
+(track shape 38053).
 
-- derail.json: a split point derail used on the stjlc route.
+- switch06rx.json: points only 6 degree right switch (track shape 39830).
+
+- derail.json: a split point derail used on the stjlc route
+(track shape 24799).
 
 - switchstand.blend: blender switch stand model used by other files.

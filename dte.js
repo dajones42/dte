@@ -24,7 +24,7 @@ THE SOFTWARE.
 //
 
 const THREE= require('three');
-const proj4= require('proj4');
+//const proj4= require('proj4');
 
 //	initiallizes menu, keyboard events and displays
 window.onload= function() {
@@ -1798,6 +1798,7 @@ let readCSV= function(filename)
 		proj4Str= "+proj=tmerc +lat_0="+ll.lat+" +lon_0="+ll.lng+
 		  " +k_0="+k0+" +x_0=0 +y_0=0";
 //		console.log(projection);
+		proj4= require('proj4');
 		projection= proj4(proj4Str);
 		xy= projection.forward({ x: ll.lng, y: ll.lat });
 		ll= projection.inverse({ x: xy.x, y: xy.y });
@@ -2415,8 +2416,10 @@ let readData= function(filename)
 	centerV= data.centerV;
 	scale= data.scale;
 	proj4Str= data.proj4Str;
-	if (proj4Str.length > 0)
+	if (proj4Str.length > 0) {
+		proj4= require('proj4');
 		projection= proj4(proj4Str);
+	}
 	if (data.addToTrackDB)
 		addToTrackDB= true;
 	else
@@ -2512,6 +2515,7 @@ let readProjection= function()
 		proj4Str= data.proj4Str;
 		centerTX= data.centerTX;
 		centerTZ= data.centerTZ;
+		proj4= require('proj4');
 		projection= proj4(proj4Str);
 	} catch (e) {
 //		console.log("cannot read projection.json");

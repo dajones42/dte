@@ -15,6 +15,7 @@ and curved switches.
 
 - trackshape.py: Blender python script used to create track shape file given
 a track path file and a track profile file.
+ usage: blender -b --python trackshape.py -- *shape.json* *profile.json*
 
 ## Track Profile Files
 

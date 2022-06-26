@@ -26,62 +26,69 @@ THE SOFTWARE.
 let setupMenu= function() {
 	var topMenu= new nw.Menu({type: 'menubar'});
 	var fileMenu= new nw.Menu();
-	fileMenu.append(new nw.MenuItem({
-		label: 'Open',
-		click: function() {
-			document.getElementById('fileopen').click();
-		}
-	}));
-	fileMenu.append(new nw.MenuItem({
-		label: 'Save',
-		click: function() {
-			let e= document.getElementById('filesave');
-			e.value= "";
-			e.click();
-		}
-	}));
-	fileMenu.append(new nw.MenuItem({
-		label: 'Open TDB',
-		click: function() {
-			document.getElementById('fileopentdb').click();
-		}
-	}));
+	if (!trackDB && !projection) {
+		fileMenu.append(new nw.MenuItem({
+			label: 'Open',
+			click: function() {
+				document.getElementById('fileopen').click();
+			}
+		}));
+		fileMenu.append(new nw.MenuItem({
+			label: 'Open TDB',
+			click: function() {
+				document.getElementById('fileopentdb').click();
+			}
+		}));
+	} else {
+		fileMenu.append(new nw.MenuItem({
+			label: 'Save',
+			click: function() {
+				let e= document.getElementById('filesave');
+				e.value= "";
+				e.click();
+			}
+		}));
+	}
 	fileMenu.append(new nw.MenuItem({
 		label: 'Import CSV',
 		click: function() {
 			document.getElementById('fileimport').click();
 		}
 	}));
-	fileMenu.append(new nw.MenuItem({
-		label: 'Export CSV',
-		click: function() {
-			document.getElementById('fileexport').click();
-		}
-	}));
-	fileMenu.append(new nw.MenuItem({
-		label: 'Save to Route',
-		click: saveToRoute
-	}));
-	fileMenu.append(new nw.MenuItem({
-		label: 'Add Tiles',
-		click: addTiles
-	}));
-	fileMenu.append(new nw.MenuItem({
-		label: 'Save Tile Image',
-		click: saveTileImage
-	}));
+	if (tracks.length > 0) {
+		fileMenu.append(new nw.MenuItem({
+			label: 'Export CSV',
+			click: function() {
+				document.getElementById('fileexport').click();
+			}
+		}));
+	}
+	if (trackDB && !addToTrackDB) {
+		fileMenu.append(new nw.MenuItem({
+			label: 'Save to Route',
+			click: saveToRoute
+		}));
+		fileMenu.append(new nw.MenuItem({
+			label: 'Add Tiles',
+			click: addTiles
+		}));
+		fileMenu.append(new nw.MenuItem({
+			label: 'Save Tile Image',
+			click: saveTileImage
+		}));
+	}
 	fileMenu.append(new nw.MenuItem({
 		label: 'Save Tile Cut&Fill',
 		click: saveTileCutFill
 	}));
-	fileMenu.append(new nw.MenuItem({
-		label: 'Save Elevated Track',
-		click: saveElevatedTracks
-	}));
-	fileMenu.append(new nw.MenuItem({
-		label: 'Find Features',
-		click: findTopoFeatures
-	}));
+//	fileMenu.append(new nw.MenuItem({
+//		label: 'Save Elevated Track',
+//		click: saveElevatedTracks
+//	}));
+//	fileMenu.append(new nw.MenuItem({
+//		label: 'Find Features',
+//		click: findTopoFeatures
+//	}));
 //	fileMenu.append(new nw.MenuItem({
 //		label: 'Make Quad Tree',
 //		click: makeQuadTree
@@ -259,11 +266,13 @@ let setupMenu= function() {
 			readProjection();
 			calcTrackDBUV();
 			renderCanvas();
+			setupMenu();
 		});
 	document.getElementById('fileopen').addEventListener('change',
 		function(e) {
 //			console.log('open '+this.value);
 			readData(this.value);
+			setupMenu();
 		});
 	document.getElementById('filesave').addEventListener('change',
 		function(e) {
@@ -274,6 +283,7 @@ let setupMenu= function() {
 		function(e) {
 			readCSV(this.value);
 //			renderCanvas();
+			setupMenu();
 		});
 	document.getElementById('fileexport').addEventListener('change',
 		function(e) {

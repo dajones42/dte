@@ -471,3 +471,4 @@ if "switchstand" in shape:
         bpy.data.collections["MAIN_1200"].objects.link(obj)
 
 bpy.ops.export.msts_s(filepath=shape["filename"])
+#bpy.ops.wm.save_as_mainfile(filepath=shape["filename"]+".blend")

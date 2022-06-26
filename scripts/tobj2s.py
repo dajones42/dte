@@ -9,7 +9,6 @@ args= sys.argv[sys.argv.index("--")+1:]
 objfile= args[0]
 fname= objfile[6:-4]
 sfile= 'SHAPES/t'+fname+'.s'
-pngfile= 'TEXTURES/t'+fname+'.png'
 acefile= 'TEXTURES/t'+fname+'.ace'
 
 if "Cube" in bpy.data.objects:
@@ -42,7 +41,6 @@ def addObject(name,texture,trans):
             root= obj
         main2000col.objects.link(obj)
 
-#addObject("main",pngfile,"OPAQUE")
 addObject("main","fieldwmt.ace","OPAQUE")
 addObject("walls","StoneGreyCourseRough.ace","OPAQUE")
 addObject("tracks","roadbed.ace","OPAQUE")
@@ -55,3 +53,4 @@ addObject("field40","field40mt.ace","OPAQUE")
 addObject("fieldw","fieldwmt.ace","OPAQUE")
 
 bpy.ops.export.msts_s(filepath=sfile)
+#bpy.ops.wm.save_as_mainfile(filepath=sfile+".blend")

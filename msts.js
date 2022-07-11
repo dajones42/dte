@@ -1340,6 +1340,7 @@ let writeWorldFile= function(tile)
 		throw "bad .w file "+path;
 	if (wFile)
 		wFile= wFile.children[1];
+	console.log("write wfile "+path);
 	const fd= fs.openSync(path,"w");
 	const bom= Buffer.alloc(2);
 	bom.writeUInt16LE(0xfeff,0);
@@ -1385,8 +1386,22 @@ let writeWorldFile= function(tile)
 		}
 		fs.writeSync(fd,")\r\n",null,"utf16le");
 	}
+	let getFileName= function(children) {
+		for (let i=0; i<children.length; i+=2) {
+			if (children[i].value == "FileName")
+				return children[i+1].children[0].value;
+		}
+		return "";
+	}
 	for (let i=0; wFile && addToTrackDB && i<wFile.children.length; i+=2) {
 		let c= wFile.children[i];
+		if (c.value == "Static") {
+			let fn= getFileName(wFile.children[i+1].children);
+			if (fn.substr(0,10) == "t"+tile.filename) {
+				console.log("skip "+fn);
+				continue;
+			}
+		}
 		if (!addToTrackDB && (c.children.length>0 ||
 		  c.value=="Dyntrack" || c.value=="Trackobj"))
 			continue;
@@ -1461,7 +1476,7 @@ let writeWorldFile= function(tile)
 		  null,"utf16le");
 		fs.writeSync(fd,"\t)\r\n",null,"utf16le");
 	}
-	for (let i=0; i<tile.models.length; i++) {
+	for (let i=0; tile.models && i<tile.models.length; i++) {
 		let model= tile.models[i];
 		if (model.position) {
 			let curve= model.curve;
@@ -1657,10 +1672,10 @@ let writeWorldFile= function(tile)
 			let q= new THREE.Quaternion();
 //			let e= new THREE.Euler(0,Math.PI-model.ay,
 //			  0,"YXZ");
-//			let e= new THREE.Euler(model.ax,Math.PI-model.ay,
-//			  model.az);
-			let e= new THREE.Euler(-model.ax,-model.ay,
+			let e= new THREE.Euler(-model.ax,Math.PI-model.ay,
 			  model.az);
+//			let e= new THREE.Euler(-model.ax,-model.ay,
+//			  model.az);
 			q.setFromEuler(e);
 //			console.log("sw q "+q.x+" "+q.y+" "+q.z+" "+q.w);
 			fs.writeSync(fd,"\t\tQDirection ( "+
@@ -1697,7 +1712,7 @@ let writeWorldFile= function(tile)
 		  null,"utf16le");
 		fs.writeSync(fd,"\t)\r\n",null,"utf16le");
 	}
-	fs.writeSync(fd,")",null,"utf16le");
+	fs.writeSync(fd,")\r\n",null,"utf16le");
 	fs.closeSync(fd);
 }
 
@@ -1958,7 +1973,8 @@ let saveToRoute= function()
 		node.angle= Math.atan2(point.direction.y,point.direction.x);
 		if (point.forcedDirection && point.forcedDirection==1)
 			node.angle+= Math.PI;
-		node.ay= Math.PI/2-node.angle;
+		node.ay= Math.PI/2-node.angle+Math.PI;
+//		node.ay= Math.PI/2-node.angle;
 		node.az= 0;
 	}
 	// set tdb node section information for vector section
@@ -3072,7 +3088,7 @@ let saveTileCutFill= function()
 	if (!tile)
 		return;
 	let patchImages= document.getElementById("patchimagesize").value>0;
-	let path= routeDir+fspath.sep+"TILES"+fspath.sep+tile.filename;
+	let path= routeDir+fspath.sep+"TILES"+fspath.sep+"t"+tile.filename;
 	tile.patchModels= [];
 	calcTrackPointElevations();
 	let faces= findTrackFaces("yard");
@@ -3146,7 +3162,17 @@ let saveTileCutFill= function()
 //			return;
 		}
 	}
-	createTFile(tile,"t"+tile.filename+".ace",patchImages);
+	if (addToTrackDB) {
+		setNextUid(tile);
+		writeWorldFile(tile);
+	} else {
+		createTFile(tile,"t"+tile.filename+".ace",patchImages);
+	}
+	for (let i=0; i<tiles.length; i++) {
+		let t= tiles[i];
+		if (t.terrain)
+			writeTerrain(t);
+	}
 	console.log("done");
 }
 
@@ -3289,12 +3315,12 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 		fill: { depth: 0, width: 2.75, slope: 1.5, surface: 2003 },
 	  },
 	  yard: {
-		cut: { depth: 0, width: 5, slope: 1 },
+		cut: { depth: .01, width: 5, slope: 1 },
 		fill: { depth: 0, width: 2.75, slope: 1.5, surface: 2003 },
 	  },
 	  main: {
-		cut: { depth: 1, width: 3.2, slope: 1 },
-		fill: { depth: 0, width: 2.75, slope: 1.5, surface: 2003 },
+		cut: { depth: .46, width: 6, slope: 1 },
+		fill: { depth: 0, width: 3.66, slope: 1.5, surface: 2003 },
 	  },
 	  road: {
 		cut: { depth: 1, width: 6, slope: 1 },
@@ -4230,6 +4256,10 @@ let overrideSwitchShapes= function()
 //	trackDB.tSection.shapes[22697].filename= "SR_1tSwt_w_m06dL_Div.s";
 //	trackDB.tSection.shapes[22698].filename= "SR_1tSwt_w_m06dR_Div.s";
 	let routeShapes= "..\\\\..\\\\ROUTES\\\\stjlc\\\\SHAPES\\\\";
+	let routeShapes1= "..\\\\..\\\\ROUTES\\\\bristol\\\\SHAPES\\\\";
+	trackDB.tSection.shapes[38050].filename= routeShapes1+"switch03l.s";
+	trackDB.tSection.shapes[38051].filename= routeShapes1+"switch03r.s";
+	trackDB.tSection.shapes[19768].filename= routeShapes1+"switch03y.s";
 	trackDB.tSection.shapes[38052].filename= routeShapes+"switch06l.s";
 	trackDB.tSection.shapes[38053].filename= routeShapes+"switch06r.s";
 	trackDB.tSection.shapes[22697].filename= routeShapes+"switch06ld.s";

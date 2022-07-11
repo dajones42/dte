@@ -265,6 +265,7 @@ let setupMenu= function() {
 			findCenter();
 			readProjection();
 			calcTrackDBUV();
+			convertTrackDB();
 			renderCanvas();
 			setupMenu();
 		});

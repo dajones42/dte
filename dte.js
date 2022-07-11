@@ -172,6 +172,85 @@ let calcTrackDBUV= function()
 	}
 }
 
+let convertTrackDB= function()
+{
+	for (let i=0; trackDB && i<trackDB.nodes.length; i++) {
+		let node= trackDB.nodes[i];
+		if (!node || !node.shape)
+			continue;
+		let sw= { points: [ null, null, null ] };
+		sw.shapeID= node.shape;
+		sw.angle= Math.PI/2-node.ay+Math.PI;
+		sw.grade= -node.ax;
+		sw.angles= [];
+		sw.offsets= [];
+		calcSwitchOffsets(sw);
+		node.sw= sw;
+		switches.push(sw);
+	}
+	let getPin= function(node,id) {
+		for (let i=0; i<node.pins.length; i++)
+			if (node.pins[i].node == id)
+				return i;
+		return -1;
+	}
+	let getPoints= function(node,pin) {
+		if (pin < 1)
+			return 0;
+		let shape= trackDB.tSection.shapes[node.sw.shapeID];
+		return shape.paths[pin-1].sections.length;
+	}
+	for (let i=0; trackDB && i<trackDB.nodes.length; i++) {
+		let node= trackDB.nodes[i];
+		if (!node || !node.sections)
+			continue;
+		let track= addTrack();
+		let prevStraight= false;
+		let node1= trackDB.nodes[node.pins[0].node];
+		let node2= trackDB.nodes[node.pins[1].node];
+		let pin1= getPin(node1,i);
+		let pin2= getPin(node2,i);
+		let n1= getPoints(node1,pin1);
+		let n2= getPoints(node2,pin2);
+		for (let j=0; j<node.sections.length; j++) {
+			let section= node.sections[j];
+			let straight= trackDB.tSection.sections[
+			  section.sectionID].length>0;
+			let cp= { position: new THREE.Vector3(section.u,
+			  section.v,section.y) };
+			let a= Math.PI/2-section.ay;
+			cp.direction= new THREE.Vector2(Math.cos(a),
+			  Math.sin(a)).normalize();
+			cp.straight= straight;
+			if (!straight && !prevStraight)
+				cp.forcedDirection= true;
+			prevStraight= straight;
+			if (n1<=j && j<=node.sections.length-n2)
+				track.controlPoints.push(cp);
+		}
+		if (n2 == 0) {
+			let cp= { position: new THREE.Vector3(node2.u,
+			  node2.v,node2.y) };
+			let a= Math.PI/2-node2.ay;
+			cp.direction= new THREE.Vector2(Math.cos(a),
+			  Math.sin(a)).normalize();
+			track.controlPoints.push(cp);
+		}
+		if (node1.sw) {
+			let cp= track.controlPoints[0];
+			cp.sw= node1.sw;
+			node1.sw.points[pin1]= cp;
+		}
+		if (node2.sw) {
+			let n= track.controlPoints.length;
+			let cp= track.controlPoints[n-1];
+			cp.sw= node2.sw;
+			node2.sw.points[pin2]= cp;
+		}
+	}
+	calcTrack();
+}
+
 //	update all displays
 let renderCanvas= function()
 {

@@ -256,7 +256,7 @@ let renderMap= function()
 		let trackPoints= track.trackPoints;
 		for (let i=0; i<controlPoints.length; i++) {
 			let cp= controlPoints[i];
-			if (cp.straight)
+			if (cp.straight && cp.trackPoint)
 				trackPoints[cp.trackPoint].straight=
 				  cp.badStraight ? 2 : 1;
 //			if (cp.badStraight)

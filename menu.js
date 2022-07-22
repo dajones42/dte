@@ -135,6 +135,10 @@ let setupMenu= function() {
 		click: toggleOverpass
 	}));
 	editMenu.append(new nw.MenuItem({
+		label: 'No Cut',
+		click: toggleNoCut
+	}));
+	editMenu.append(new nw.MenuItem({
 		label: 'Group',
 		click: selectGroup
 	}));

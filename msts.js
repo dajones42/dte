@@ -3096,13 +3096,19 @@ let saveTileCutFill= function()
 		for (let j=0; j<16; j++) {
 			let i0= i*16;
 			let j0= j*16;
-//			if (i!=0 || j!=11)
-//				continue;
 			if (countPatchTrackPoints(tile,i0,j0) < 1)
 				continue;
 			let ppath= path+"_"+i+"_"+j;
 			console.log("patch "+tx+" "+tz+" "+i+" "+j+" "+i0+
 			  " "+j0+" "+countPatchTrackPoints(tile,i0,j0));
+			let noCut= false;
+			for (let k=0; tile.noCut && k<tile.noCut.length; k++) {
+				let tnc= tile.noCut[k];
+				if (tnc.i==i && tnc.j==j) {
+					noCut= tnc.value;
+					break;
+				}
+			}
 			let model= makePatchModel(tile,i0,j0);
 			console.log(" polys "+model.polygons.length);
 			let nextID= 3000;
@@ -3126,17 +3132,11 @@ let saveTileCutFill= function()
 			let fbox= clipPolygons(fill,bBox,false);
 			console.log(" fbox "+fbox.polygons.length);
 			//writeCsgObj(ppath+"_fbox.obj",fbox);
-//			model= model.intersect(bBox);
-//			console.log(" after intersect "+model.polygons.length);
-//			if (cut.polygons.length > 0)
-//				model= model.subtract(cut);
-//			console.log(" polys after cut "+model.polygons.length);
-//			fill= fill.intersect(bBox);
-//			if (fill.polygons.length > 0)
-//				model= model.union(fill);
-//			console.log(" polys after fill "+model.polygons.length);
-			model= cutFillBySquare(i0,j0,model,cut,fbox,tx,tz,
-			  opCut,patchImages);
+			if (noCut)
+				model= fbox;
+			else
+				model= cutFillBySquare(i0,j0,model,cut,fbox,
+				  tx,tz,opCut,patchImages);
 			console.log(" polys "+model.polygons.length);
 			if (!patchImages)
 //				adjustPatchPolygons(model);
@@ -3146,20 +3146,6 @@ let saveTileCutFill= function()
 				  tile.patchColors[i*16+j],i0,j0);
 			if (writeCsgObj(ppath+".obj",model,i,j,patchImages))
 				tile.patchModels.push([i,j]);
-//			for (let k=0; k<cut.polygons.length; k++)
-//				merge.polygons.push(cut.polygons[k]);
-//			for (let k=0; k<fill.polygons.length; k++)
-//				merge.polygons.push(fill.polygons[k]);
-//			writeCsgObj(ppath+"_merge.obj",merge);
-//			let c1= CSG.cube({center:[0,0,0],radius:[1,1,1]});
-//			let c2= CSG.cube({center:[.5,.4,.6],radius:[1,1,1]});
-//			let ccu= c1.union(c2);
-//			let ccs= c1.subtract(c2);
-//			let cci= c1.intersect(c2);
-//			writeCsgObj(ppath+"_ccu.obj",ccu);
-//			writeCsgObj(ppath+"_ccs.obj",ccs);
-//			writeCsgObj(ppath+"_cci.obj",cci);
-//			return;
 		}
 	}
 	if (addToTrackDB) {
@@ -3682,7 +3668,7 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 			}
 		}
 		if (polys.length > prevLength)
-			console.log("tid "+trackPid+" "+endPid+" "+nsurf);
+			console.log("tid "+trackPid+" "+endPid+" "+nsurf+" "+i);
 		if (polys.length > prevLength)
 			addEnd(true,endPid);
 		if (controlPoints.length == 1)

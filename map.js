@@ -140,6 +140,21 @@ let renderMap= function()
 			context.strokeRect(u,v,128*scale,128*scale);
 		}
 	}
+	context.strokeStyle= "orange";
+	for (let i=0; i<tiles.length; i++) {
+		let tile= tiles[i];
+		for (let j=0; tile.noCut && j<tile.noCut.length; j++) {
+			let tnc= tile.noCut[j];
+			if (tnc.value) {
+				let u= (2048*(tile.x-centerTX)-1024-centerU+
+				  128*tnc.j)*scale + width/2;
+				let v= height/2 -
+				  (2048*(tile.z-centerTZ)+1024-centerV-
+				  128*tnc.i)*scale;
+				context.strokeRect(u,v,128*scale,128*scale);
+			}
+		}
+	}
 	context.strokeStyle= "fuchsia";//"lightblue";
 	for (let i=0; i<tiles.length; i++) {
 		let tile= tiles[i];

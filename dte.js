@@ -1301,6 +1301,33 @@ let toggleOverpass= function()
 	renderCanvas();
 }
 
+//	Implements the Edit menu No Cut function.
+//	Toggles the selected control point has noCut value.
+let toggleNoCut= function()
+{
+	let tx= centerTX + Math.round(centerU/2048);
+	let tz= centerTZ + Math.round(centerV/2048);
+	let tile= findTile(tx,tz);
+	let cu= 2048*(tx-centerTX);
+	let cv= 2048*(tz-centerTZ);
+	let pi= Math.floor((1024-centerV+cv)/128);
+	let pj= Math.floor((centerU+1024-cu)/128);
+	if (!tile.noCut)
+		tile.noCut= [];
+	let saveNoCut= function() {
+		for (let i=0; i<tile.noCut.length; i++) {
+			let nc= tile.noCut[i];
+			if (nc.i==pi && nc.j==pj) {
+				nc.value= !nc.value;
+				return;
+			}
+		}
+		tile.noCut.push({ i:pi, j:pj, value:true });
+	}
+	saveNoCut();
+	renderCanvas();
+}
+
 //	Implements the Edit menu Offset function.
 //	Moves the selected control point so that it is atleast 4.985 meters
 //	from other tracks.
@@ -2392,7 +2419,8 @@ let saveData= function(filename)
 		addToTrackDb: addToTrackDB,
 		tracks: [],
 		switches: [],
-		patchModels: []
+		patchModels: [],
+		noCut: []
 	};
 	if (tdbPath)
 		data.tdbPath= tdbPath;
@@ -2410,8 +2438,7 @@ let saveData= function(filename)
 				forcedDirection: cp.forcedDirection || 0,
 				straight: cp.straight || 0,
 				calcElevation: cp.calcElevation || 0,
-				bridge: cp.bridge || 0,
-				overpass: cp.overpass || 0
+				bridge: cp.bridge || 0
 			};
 			if (cp.direction)
 				p.direction= [ cp.direction.x, cp.direction.y,
@@ -2426,6 +2453,8 @@ let saveData= function(filename)
 				p.name= cp.name;
 			if (cp.dzdw)
 				p.dzdw= cp.dzdw;
+			if (cp.overpass)
+				p.overpass= cp.overpass;
 			dTrack.points.push(p);
 			if (cp.sw) {
 				cp.tIndex= i;
@@ -2465,9 +2494,9 @@ let saveData= function(filename)
 		if (tile.patchModels)
 			data.patchModels.push({ tx:tile.x, tz:tile.z,
 			  patchModels: tile.patchModels });
-//		if (tile.patchColors)
-//			data.patchColors.push({ tx:tile.x, tz:tile.z,
-//			  patchColors: tile.patchColors });
+		if (tile.noCut)
+			data.noCut.push({ tx:tile.x, tz:tile.z,
+			  noCut: tile.noCut });
 	}
 	let s= JSON.stringify(data,null,1);
 	if (filename.indexOf(".json") < 0)
@@ -2572,11 +2601,11 @@ let readData= function(filename)
 		if (tile)
 			tile.patchModels= dpm.patchModels;
 	}
-	for (let i=0; data.patchColors && i<data.patchColors.length; i++) {
-		let dpc= data.patchColors[i];
-		let tile= findTile(dpc.tx,dpc.tz);
+	for (let i=0; data.noCut && i<data.noCut.length; i++) {
+		let dnc= data.noCut[i];
+		let tile= findTile(dnc.tx,dnc.tz);
 		if (tile)
-			tile.patchColors= dpc.patchColors;
+			tile.noCut= dnc.noCut;
 	}
 	calcTrack();
 	renderCanvas();

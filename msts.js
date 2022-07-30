@@ -2537,11 +2537,34 @@ let mapTerrainColor= function(value,color)
 	return 255*(.7*x + .1*x*x);
 }
 
+let paintTileImage= function(context,wid,ht,tile)
+{
+	let img= document.getElementById('field');
+	let pattern= context.createPattern(img,"repeat");
+	//context.fillStyle= "#a8b3a9";
+	context.fillStyle= pattern;
+	for (let i=0; i<16; i++) {
+		for (let j=0; j<16; j++) {
+			let pd= tile.patchDistance[i*16+j];
+			let a= 1;
+			if (pd > 1)
+				a= 1-.1*(pd-1);
+			if (a <= 0)
+				continue;
+			context.globalAlpha= a;
+			context.fillRect(j*wid/16,i*ht/16,wid/16,ht/16);
+//			console.log("alpha "+i+" "+j+" "+a);
+		}
+	}
+	context.globalAlpha= 1;
+}
+
 //	Implements the File menu Save Tile Image feature.
 //	Creates a canvas with the image for the current center tile and
 //	then saves it as a png file and updates the .t file.
 let saveTileImage= function()
 {
+	calcPatchDistance();
 	let tx= centerTX + Math.round(centerU/2048);
 	let tz= centerTZ + Math.round(centerV/2048);
 	let tile= findTile(tx,tz);
@@ -2559,6 +2582,18 @@ let saveTileImage= function()
 	let context= canvas.getContext("2d");
 	context.fillStyle= "lightgreen";
 	context.fillRect(0,0,canvas.width,canvas.height);
+	let mapColors= function() {
+		for (let x=0; x<sz; x++) {
+			for (let y=0; y<sz; y++) {
+				let idata= context.getImageData(x,y,1,1);
+				let pixel= idata.data;
+				for (let j=0; j<3; j++) {
+					pixel[j]= mapTerrainColor(pixel[j],j);
+				}
+				context.putImageData(idata,x,y);
+			}
+		}
+	}
 	let paint= true;
 	for (let i=0; i<backgroundTiles.length; i++) {
 		let bgt= backgroundTiles[i];
@@ -2566,6 +2601,7 @@ let saveTileImage= function()
 			continue;
 		if (bgt.zoom==20 && paint) {
 			paintBackground(context,scale,width,height,cu,cv);
+			paintTileImage(context,canvas.width,canvas.height,tile);
 			paint= false;
 		}
 		let u= (bgt.u-cu)*scale + width/2;
@@ -2588,60 +2624,11 @@ let saveTileImage= function()
 	}
 	if (paint) {
 		paintBackground(context,scale,width,height,cu,cv);
+		paintTileImage(context,canvas.width,canvas.height,tile);
 		paint= false;
 	}
-	let badColor= function(pixel) {
-		let r= pixel[0];
-		let g= pixel[1];
-		let b= pixel[2];
-		if  (r>g && r>b) {
-			let c= r - (g<b ? g : b);
-			if (c < 8)
-				return false;
-			return true;
-		}
-		if (g>r && g>b) {
-			let c= g - (r<b ? r : b);
-			if (c < 8)
-				return false;
-			let h= (b-r)/c;
-			return h<1.2;
-		}
-		let c= b - (r<g ? r : g);
-		if (c < 8)
-			return false;
-		let h= (r-g)/c;
-		return h>4.8;
-	}
-	let addColor= function(x,y,pout) {
-		let pixel= context.getImageData(x,y,1,1).data;
-		if (badColor(pixel))
-			return false;
-		for (let i=0; i<3; i++)
-			pout[i]+= pixel[i];
-		return true;
-	}
-//	for (let i=0; false && i<10 && mapType=="imagerytopo"; i++) {
-	for (let i=0; i<1; i++) {
-		let nchg= 0;
-		for (let x=0; x<sz; x++) {
-			for (let y=0; y<sz; y++) {
-				let idata= context.getImageData(x,y,1,1);
-				let pixel= idata.data;
-				for (let j=0; j<3; j++) {
-					pixel[j]= mapTerrainColor(pixel[j],j);
-				}
-				context.putImageData(idata,x,y);
-				nchg++;
-			}
-		}
-		console.log(" fix "+i+" "+nchg);
-		if (nchg == 0)
-			break;
-	}
+	mapColors();
 	let dataUrl= canvas.toDataURL();
-//	let dataUrl= canvas.toDataURL("image/dds");
-//	console.log(dataUrl.substr(0,60));
 	let start= dataUrl.indexOf("base64,");
 	let buf= Buffer.from(dataUrl.substr(start+6),"base64");
 	let path= routeDir+fspath.sep+'TERRTEX'+fspath.sep+"t"+tile.filename+
@@ -3087,6 +3074,8 @@ let saveTileCutFill= function()
 	let tile= findTile(tx,tz);
 	if (!tile)
 		return;
+	if (!addToTrackDB)
+		resetTileElevation(tile);
 	let patchImages= document.getElementById("patchimagesize").value>0;
 	let path= routeDir+fspath.sep+"TILES"+fspath.sep+"t"+tile.filename;
 	tile.patchModels= [];
@@ -3144,6 +3133,8 @@ let saveTileCutFill= function()
 			if (tile.patchColors && tile.patchColors[i*16+j])
 				assignPatchColors(model,
 				  tile.patchColors[i*16+j],i0,j0);
+			else
+				assignPatchColors(model,null,i0,j0);
 			if (writeCsgObj(ppath+".obj",model,i,j,patchImages))
 				tile.patchModels.push([i,j]);
 		}
@@ -4157,13 +4148,12 @@ let setSquareElevation= function(tx,tz,ti,tj,polygons)
 	let minz= 1e10;
 	for (let i=0; i<polygons.length; i++) {
 		let poly= polygons[i];
-		if (poly.shared && poly.shared<=1024)
+		if (poly.shared && poly.shared>0 && poly.shared<=1024)
 			continue;
 		for (let j=0; j<poly.vertices.length; j++) {
 			let vert= poly.vertices[j];
 			if (minz > vert.pos.z)
 				minz= vert.pos.z;
-			vert.cut= 1;
 		}
 	}
 //	if (minz == 1e10)
@@ -5080,11 +5070,11 @@ let assignPatchColors= function(model,patchColors,i0,j0)
 		let poly= model.polygons[i];
 		if (poly.shared && poly.shared>0 && poly.shared<=1024) {
 			let j= Math.floor((poly.shared-1)/2);
-			let c= patchColors[j];
+			let c= patchColors ? patchColors[j] : 3;
 			poly.shared= 2100+c;
 		}
 		if (poly.shared && poly.shared>=3000) {
-			poly.shared= 2100+getColor(poly);
+			poly.shared= patchColors ? 2100+getColor(poly) : 2101;
 		}
 	}
 }
@@ -5178,12 +5168,85 @@ let adjustPatchPolygons1= function(model,tile)
 				if (vert.ij) {
 					let z= getTerrainElevation(vert.ij.i,
 					  vert.ij.j,tile,false);
-					if (z > vert.pos.z-.01)
+					if (z > vert.pos.z-.05)
 						n++;
 				}
 			}
 			if (n == poly.vertices.length)
 				poly.shared= 0;
+		}
+	}
+}
+
+let resetTileElevation= function(tile)
+{
+	for (let i=0; i<256; i++) {
+		for (let j=0; j<256; j++) {
+			let e= getTerrainElevation(i,j,tile,true);
+			setTerrainElevation(i,j,tile,e,false);
+		}
+	}
+}
+
+let calcPatchDistance= function()
+{
+	let q= [];
+	let add= function(tile,i,j) {
+		q.push({ tile:tile, i:i, j:j });
+	}
+	for (let i=0; i<tiles.length; i++) {
+		let tile= tiles[i];
+		tile.patchDistance= [];
+		for (let j=0; j<256; j++)
+			tile.patchDistance.push(1e10);
+		if (!tile.patchModels)
+			continue;
+		for (let j=0; j<tile.patchModels.length; j++) {
+			let tpm= tile.patchModels[j];
+			let k= tpm[0]*16 + tpm[1];
+			tile.patchDistance[k]= 0;
+			add(tile,tpm[0],tpm[1]);
+		}
+	}
+	let update= function(tile,i,j,d) {
+		if (i < 0) {
+			let t= findTile(tile.x,tile.z-1);
+			if (t)
+				update(t,15,j,d);
+		} else if (i > 15) {
+			let t= findTile(tile.x,tile.z+1);
+			if (t)
+				update(t,0,j,d);
+		} else if (j < 0) {
+			let t= findTile(tile.x+1,tile.z);
+			if (t)
+				update(t,i,15,d);
+		} else if (j > 15) {
+			let t= findTile(tile.x+1,tile.z);
+			if (t)
+				update(t,i,0,d);
+		} else {
+			let k= i*16+j;
+			if (tile.patchDistance[k] > d) {
+				tile.patchDistance[k]= d;
+				add(tile,i,j);
+			}
+		}
+	}
+	for (let d=1; q.length>0 && d<tiles.length; d++) {
+//		console.log("d "+d+" q "+q.length);
+		let q1= q;
+		q= [];
+		for (let i=0; i<q1.length; i++) {
+			let p= q1[i];
+			update(p.tile,p.i-1,p.j-1,d);
+			update(p.tile,p.i-1,p.j,d);
+			update(p.tile,p.i-1,p.j+1,d);
+			update(p.tile,p.i,p.j-1,d);
+			update(p.tile,p.i,p.j+1,d);
+			update(p.tile,p.i+1,p.j-1,d);
+			update(p.tile,p.i+1,p.j,d);
+			update(p.tile,p.i+1,p.j+1,d);
 		}
 	}
 }

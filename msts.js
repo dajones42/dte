@@ -2615,7 +2615,7 @@ let saveTileImage= function()
 		let img= bgt.image;
 		if (bgt.zoom == 20) {
 			if (!bgt.hydroImage)
-				bgt.hydroImage= fixHydroImage(img);
+				bgt.hydroImage= fixHydroImage(img,null);
 			img= bgt.hydroImage;
 		}
 		context.drawImage(img,0,0,w,h,-w/2,-h/2,w,h);
@@ -2870,7 +2870,7 @@ let savePatchImage= function(tile,tpm,mtdata)
 	fs.writeFileSync(path,buf);
 }
 
-let fixHydroImage= function(image)
+let fixHydroImage= function(image,bgt)
 {
 	console.log("fixhydro");
 	let hydroCanvas= document.createElement("canvas");
@@ -2881,6 +2881,27 @@ let fixHydroImage= function(image)
 	context.drawImage(image,0,0);
 	let idata= context.getImageData(0,0,256,256);
 	let data= idata.data;
+	let notFlat= function(i,j) {
+		let u= bgt.u - bgt.wid/2 + (j+.5)/256*bgt.wid -
+		  bgt.skew/bgt.wid*(i-.5);
+		let v= bgt.v + bgt.hgt/2 - (i-.5)/256*bgt.hgt +
+		  bgt.skewv/bgt.hgt*(j+.5);
+		let e1= getElevation(u-1,v,true);
+		let e2= getElevation(u+1,v,true);
+		if (Math.abs(e2-e1) > .3) {
+			console.log("notflatu "+u+" "+v+" "+i+" "+j+" "+
+			  e1+" "+e2);
+			return true;
+		}
+		e1= getElevation(u,v-1,true);
+		e2= getElevation(u,v+1,true);
+		if (Math.abs(e2-e1) > .3) {
+			console.log("notflatv "+u+" "+v+" "+i+" "+j+" "+
+			  e1+" "+e2);
+			return true;
+		}
+		return false;
+	}
 	let countBox= function(i,j,offset,sz) {
 		let n= 0;
 		for (let di=-sz; di<=sz; di++) {
@@ -2905,6 +2926,8 @@ let fixHydroImage= function(image)
 	for (let i=0; i<256; i++) {
 		for (let j=0; j<256; j++) {
 			let n= countBox(i,j,3,1);
+			if (n>6 && bgt && notFlat(i,j))
+				n= 6;
 			let k= 4*(j+256*i);
 			if (n == 9)
 				data[k]= 255;
@@ -2912,6 +2935,8 @@ let fixHydroImage= function(image)
 				data[k]= 170;
 			else if (n==7 && data[k+3]==255)
 				data[k]= 85;
+			else if (n==6 && data[k+3]==255)
+				data[k]= 20;
 			else
 				data[k]= 0
 		}
@@ -3121,11 +3146,10 @@ let saveTileCutFill= function()
 			let fbox= clipPolygons(fill,bBox,false);
 			console.log(" fbox "+fbox.polygons.length);
 			//writeCsgObj(ppath+"_fbox.obj",fbox);
+			model= cutFillBySquare(i0,j0,model,cut,fbox,
+			  tx,tz,opCut,patchImages);
 			if (noCut)
 				model= fbox;
-			else
-				model= cutFillBySquare(i0,j0,model,cut,fbox,
-				  tx,tz,opCut,patchImages);
 			console.log(" polys "+model.polygons.length);
 			if (!patchImages)
 //				adjustPatchPolygons(model);
@@ -5210,15 +5234,15 @@ let calcPatchDistance= function()
 	}
 	let update= function(tile,i,j,d) {
 		if (i < 0) {
-			let t= findTile(tile.x,tile.z-1);
+			let t= findTile(tile.x,tile.z+1);
 			if (t)
 				update(t,15,j,d);
 		} else if (i > 15) {
-			let t= findTile(tile.x,tile.z+1);
+			let t= findTile(tile.x,tile.z-1);
 			if (t)
 				update(t,0,j,d);
 		} else if (j < 0) {
-			let t= findTile(tile.x+1,tile.z);
+			let t= findTile(tile.x-1,tile.z);
 			if (t)
 				update(t,i,15,d);
 		} else if (j > 15) {

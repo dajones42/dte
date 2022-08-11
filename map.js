@@ -56,7 +56,7 @@ let renderMap= function()
 		let tile= tiles[i];
 		let u= (2048*(tile.x-centerTX)-centerU)*scale + width/2;
 		let v= height/2 - (2048*(tile.z-centerTZ)-centerV)*scale;
-		context.fillText(tile.filename,u,v);
+		context.fillText(tile.filename+" "+tile.x+" "+tile.z,u,v);
 	}
 	let paint= true;
 	for (let i=0; i<backgroundTiles.length; i++) {
@@ -1255,14 +1255,14 @@ let saveImage= function()
 	if (!best)
 		return;
 	best.saved= true;
-	console.log("best "+best+" "+bestz+" "+bestd);
+	console.log("best "+best+" "+bestz+" "+bestd+" "+centerU+" "+centerV);
 	let path= routeDir+fspath.sep+'TERRTEX'+fspath.sep+
 	  mapType+best.tx+"-"+best.ty+".png";
 	console.log(path);
 	console.log("src "+best.image.src);
 	let img= best.image;
 	if (mapType == "hydro")
-		img= fixHydroImage(img);
+		img= fixHydroImage(img,best);
 	let dataUrl= img.toDataURL();
 	let start= dataUrl.indexOf("base64,");
 	let buf= Buffer.from(dataUrl.substr(start+6),"base64");

@@ -32,6 +32,8 @@ guard rails.
 
 - bridgerails.json: US Tracks track profile with bridge rails only.
 
+- scalerail.json: Scale Rail track profile (does not include all features).
+
 ## Switch Track Shapes
 
 These files contain information similar to track shapes in the global

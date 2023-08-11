@@ -32,9 +32,6 @@ def readjson(filename):
     fd= open(filename,'r')
     return json.load(fd)
 
-args= sys.argv[sys.argv.index("--")+1:]
-shape= readjson(args[0])
-profile= readjson(args[1])
 
 if "Cube" in bpy.data.objects:
     obj= bpy.data.objects["Cube"]
@@ -190,7 +187,7 @@ def findCrossing(cl1,cl2,offset1,offset2):
         if pi:
             d1= (pi-p11).length
             d2= (pi-p21).length
-            print("crossing %f %f %d %d %f %f"%(pi.x,pi.y,i1,i2,dist1+d1,dist2+d2))
+#            print("crossing %f %f %d %d %f %f"%(pi.x,pi.y,i1,i2,dist1+d1,dist2+d2))
             return { "pi": pi, "dist1": dist1+d1, "dist2": dist2+d2 }
         d1= (p12-p11).length
         d2= (p22-p21).length
@@ -201,7 +198,7 @@ def findCrossing(cl1,cl2,offset1,offset2):
         else:
             i2= i2+1
             dist2= dist2+d2
-    print("no crossing %f %f"%(offset1,offset2))
+#    print("no crossing %f %f"%(offset1,offset2))
     return None
 
 def makeMesh(lod,shape,part,centerLine,ends,anim):
@@ -331,9 +328,9 @@ def makeSwitchPartLines(shape):
             y= points0["dist1"]
             x= points["dist1"]
             if y==0: y=.001
-            print("rpoint %f %f"%(y,x))
+#            print("rpoint %f %f"%(y,x))
             line= copyCenterLine(cl1,y,(x+y)/2,x,None)
-            printCenterLine(line)
+#            printCenterLine(line)
             partLines.append({"part":"rightfrograil","centerLine":line,"ends":1,"anim":animR})
             if frogStart:
                 y= frogStart["dist1"]
@@ -362,9 +359,9 @@ def makeSwitchPartLines(shape):
             y= points0["dist2"]
             x= points["dist2"]
             if y==0: y=.001
-            print("lpoint %f %f"%(y,x))
+#            print("lpoint %f %f"%(y,x))
             line= copyCenterLine(cl2,y,(x+y)/2,x,None)
-            printCenterLine(line)
+#            printCenterLine(line)
             partLines.append({"part":"leftfrograil","centerLine":line,"ends":1,"anim":animL})
             if frogStart:
                 y= frogStart["dist2"]
@@ -435,40 +432,83 @@ def makeTrack(shape,profile,collection):
                 for obj in objects:
                     col.objects.link(obj)
 
-if "switchstand" in shape:
-    switchstand= shape["switchstand"]
-    bpy.ops.wm.open_mainfile(filepath=switchstand["file"])
-    obj= bpy.data.objects["switchstand"]
-    obj.location= switchstand["position"]
-    obj.rotation_euler= 0, 0, switchstand["rotation"]*math.pi/180
-    if "derail" in shape:
-        redtarget= bpy.data.objects["redtarget"]
-        redtarget.rotation_euler= 0,0,math.pi/2
-        redtarget.keyframe_insert("rotation_euler",frame=0)
-        redtarget.rotation_euler= 0,0,0
-        redtarget.keyframe_insert("rotation_euler",frame=1)
-        redtarget.rotation_euler= 0,0,math.pi/2
-    if "crankRotation" in switchstand:
-        rot= switchstand["crankRotation"]*math.pi/180
-        crank= bpy.data.objects["crank"]
-        crank.rotation_euler= 0,0,math.pi*5/4+rot
-        crank.keyframe_insert("rotation_euler",frame=0)
-        crank.rotation_euler= 0,0,math.pi*3/4+rot
-        crank.keyframe_insert("rotation_euler",frame=1)
-        crank.rotation_euler= 0,0,math.pi*5/4+rot
+def initSwitchStand(shape):
+    if "switchstand" in shape:
+        switchstand= shape["switchstand"]
+        if os.path.exists(switchstand["file"]):
+            bpy.ops.wm.open_mainfile(filepath=switchstand["file"])
+        else:
+            return
+        obj= bpy.data.objects["switchstand"]
+        obj.location= switchstand["position"]
+        obj.rotation_euler= 0, 0, switchstand["rotation"]*math.pi/180
+        if "derail" in shape:
+            redtarget= bpy.data.objects["redtarget"]
+            redtarget.rotation_euler= 0,0,math.pi/2
+            redtarget.keyframe_insert("rotation_euler",frame=0)
+            redtarget.rotation_euler= 0,0,0
+            redtarget.keyframe_insert("rotation_euler",frame=1)
+            redtarget.rotation_euler= 0,0,math.pi/2
+        if "crankRotation" in switchstand:
+            rot= switchstand["crankRotation"]*math.pi/180
+            crank= bpy.data.objects["crank"]
+            crank.rotation_euler= 0,0,math.pi*5/4+rot
+            crank.keyframe_insert("rotation_euler",frame=0)
+            crank.rotation_euler= 0,0,math.pi*3/4+rot
+            crank.keyframe_insert("rotation_euler",frame=1)
+            crank.rotation_euler= 0,0,math.pi*5/4+rot
 
-maincol= bpy.data.collections.new("MAIN")
-bpy.context.scene.collection.children.link(maincol)
+def makeCollections(shape,profile):
+    initSwitchStand(shape)
+    maincol= bpy.data.collections.new("MAIN")
+    bpy.context.scene.collection.children.link(maincol)
+    makeTrack(shape,profile,maincol)
+    if "switchstand" in bpy.data.collections:
+        sscol= bpy.data.collections["switchstand"]
+        for obj in sscol.objects:
+            bpy.data.collections["MAIN_2000"].objects.link(obj)
+            bpy.data.collections["MAIN_0700"].objects.link(obj)
+            bpy.data.collections["MAIN_1000"].objects.link(obj)
+            bpy.data.collections["MAIN_1200"].objects.link(obj)
 
-makeTrack(shape,profile,maincol)
+class ShapeFileSelector(bpy.types.Operator):
+    bl_idname= "ui.selecttrackshape"
+    bl_description= "Select Track Shape JSON file"
+    bl_label= "Load Shape"
+    filepath: bpy.props.StringProperty(subtype="FILE_PATH")
+    filter_glob: bpy.props.StringProperty(default="*.json",options={'HIDDEN'})
+    def execute(self,context):
+        shape= readjson(self.filepath)
+        makeCollections(shape,profile)
+        return {'FINISHED'}
+    def invoke(self,context,event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
 
-if "switchstand" in shape:
-    sscol= bpy.data.collections["switchstand"]
-    for obj in sscol.objects:
-        bpy.data.collections["MAIN_2000"].objects.link(obj)
-        bpy.data.collections["MAIN_0700"].objects.link(obj)
-        bpy.data.collections["MAIN_1000"].objects.link(obj)
-        bpy.data.collections["MAIN_1200"].objects.link(obj)
+class ProfileFileSelector(bpy.types.Operator):
+    bl_idname= "ui.selecttrackprofile"
+    bl_description= "Select Track Profile JSON file"
+    bl_label= "Load Profile"
+    filepath: bpy.props.StringProperty(subtype="FILE_PATH")
+    filter_glob: bpy.props.StringProperty(default="*.json",options={'HIDDEN'})
+    def execute(self,context):
+        global profile
+        profile= readjson(self.filepath)
+        bpy.ops.ui.selecttrackshape('INVOKE_DEFAULT')
+        return {'FINISHED'}
+    def invoke(self,context,event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
 
-bpy.ops.export.msts_s(filepath=shape["filename"])
-#bpy.ops.wm.save_as_mainfile(filepath=shape["filename"]+".blend")
+bpy.utils.register_class(ShapeFileSelector)
+bpy.utils.register_class(ProfileFileSelector)
+
+if "--" in sys.argv:
+    args= sys.argv[sys.argv.index("--")+1:]
+    shape= readjson(args[0])
+    profile= readjson(args[1])
+    makeCollections(shape,profile)
+    bpy.ops.export.msts_s(filepath=shape["filename"])
+#    bpy.ops.wm.save_as_mainfile(filepath=shape["filename"]+".blend")
+else:
+    bpy.ops.ui.selecttrackprofile('INVOKE_DEFAULT')

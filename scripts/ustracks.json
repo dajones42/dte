@@ -85,19 +85,14 @@
     "Vertices": [
      { "Position": [ -0.7620, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
      { "Position": [ -0.7895, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
-    ]
-   },
-   {
-    "Name": "left_outer",
-    "part": "leftfrograil",
-    "DeltaTexCoord": [ 2, 0 ],
-    "Vertices": [
-     { "Position": [ -0.7620, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
-     { "Position": [ -0.7895, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
     ],
-    "vertices0": [
+    "verticesi": [
      { "Position": [ -0.7175, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
      { "Position": [ -0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
+    ],
+    "verticeso": [
+     { "Position": [ -0.7620, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
+     { "Position": [ -0.7895, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
     ]
    },
    {
@@ -108,21 +103,16 @@
      { "Position": [ -0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
      { "Position": [ -0.7450, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
     ],
-    "verticesn": [
+    "verticesi": [
+     { "Position": [ -0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
+     { "Position": [ -0.7450, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
+    ],
+    "verticeso": [
      { "Position": [ -0.7895, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
      { "Position": [ -0.7895, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
     ]
    },
    {
-    "Name": "left_inner",
-    "part": "leftfrograil",
-    "DeltaTexCoord": [ 2, 0 ],
-    "Vertices": [
-     { "Position": [ -0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
-     { "Position": [ -0.7450, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
-    ]
-   },
-   {
     "Name": "right_inner",
     "part": "rightrail",
     "DeltaTexCoord": [ 2, 0 ],
@@ -130,40 +120,30 @@
      { "Position": [ 0.7450, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
      { "Position": [ 0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
     ],
-    "verticesn": [
+    "verticesi": [
+     { "Position": [ 0.7450, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
+     { "Position": [ 0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
+    ],
+    "verticeso": [
      { "Position": [ 0.7895, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
      { "Position": [ 0.7895, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
     ]
    },
    {
-    "Name": "right_inner",
-    "part": "rightfrograil",
-    "DeltaTexCoord": [ 2, 0 ],
-    "Vertices": [
-     { "Position": [ 0.7450, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
-     { "Position": [ 0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
-    ]
-   },
-   {
     "Name": "right_outer",
     "part": "rightrail",
     "DeltaTexCoord": [ 2, 0 ],
     "Vertices": [
      { "Position": [ 0.7895, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
      { "Position": [ 0.7620, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
-    ]
-   },
-   {
-    "Name": "right_outer",
-    "part": "rightfrograil",
-    "DeltaTexCoord": [ 2, 0 ],
-    "Vertices": [
-     { "Position": [ 0.7895, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
-     { "Position": [ 0.7620, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
     ],
-    "vertices0": [
+    "verticesi": [
      { "Position": [ 0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
      { "Position": [ 0.7175, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
+    ],
+    "verticeso": [
+     { "Position": [ 0.7895, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
+     { "Position": [ 0.7620, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
     ]
    },
    {
@@ -179,32 +159,8 @@
     ]
    },
    {
-    "Name": "left base",
-    "part": "leftfrograil",
-    "DeltaTexCoord": [ 2, 0 ],
-    "Vertices": [
-     { "Position": [ -0.8285, 0.153 ], "TexCoord": [ 0, -0.7793 ] },
-     { "Position": [ -0.8285, 0.170 ], "TexCoord": [ 0, -0.7930 ] },
-     { "Position": [ -0.7535, 0.187 ], "TexCoord": [ 0, -0.8414 ] },
-     { "Position": [ -0.6785, 0.170 ], "TexCoord": [ 0, -0.7930 ] },
-     { "Position": [ -0.6785, 0.153 ], "TexCoord": [ 0, -0.7793 ] }
-    ]
-   },
-   {
     "Name": "right base",
     "part": "rightrail",
-    "DeltaTexCoord": [ 2, 0 ],
-    "Vertices": [
-     { "Position": [ 0.6785, 0.153 ], "TexCoord": [ 0, -0.7793 ] },
-     { "Position": [ 0.6785, 0.170 ], "TexCoord": [ 0, -0.7930 ] },
-     { "Position": [ 0.7535, 0.187 ], "TexCoord": [ 0, -0.8414 ] },
-     { "Position": [ 0.8285, 0.170 ], "TexCoord": [ 0, -0.7930 ] },
-     { "Position": [ 0.8285, 0.153 ], "TexCoord": [ 0, -0.7793 ] }
-    ]
-   },
-   {
-    "Name": "right base",
-    "part": "rightfrograil",
     "DeltaTexCoord": [ 2, 0 ],
     "Vertices": [
      { "Position": [ 0.6785, 0.153 ], "TexCoord": [ 0, -0.7793 ] },
@@ -232,22 +188,13 @@
      { "Position": [ 0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
      { "Position": [ 0.7895, 0.325 ], "TexCoord": [ 0, -0.9883 ] }
     ],
-    "verticesn": [
-     { "Position": [ 0.7895, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
-     { "Position": [ 0.7895, 0.325 ], "TexCoord": [ 0, -0.9883 ] }
-    ]
-   },
-   {
-    "Name": "right",
-    "part": "rightfrograil",
-    "DeltaTexCoord": [ 2, 0 ],
-    "Vertices": [
-     { "Position": [ 0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
-     { "Position": [ 0.7895, 0.325 ], "TexCoord": [ 0, -0.9883 ] }
-    ],
-    "vertices0": [
+    "verticesi": [
      { "Position": [ 0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
      { "Position": [ 0.7175, 0.325 ], "TexCoord": [ 0, -0.9883 ] }
+    ],
+    "verticeso": [
+     { "Position": [ 0.7895, 0.325 ], "TexCoord": [ 0, -0.9336 ] },
+     { "Position": [ 0.7895, 0.325 ], "TexCoord": [ 0, -0.9883 ] }
     ]
    },
    {
@@ -258,24 +205,15 @@
      { "Position": [ -0.7895, 0.325 ], "TexCoord": [ 0, -0.9883 ] },
      { "Position": [ -0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
     ],
-    "verticesn": [
+    "verticesi": [
+     { "Position": [ -0.7175, 0.325 ], "TexCoord": [ 0, -0.9883 ] },
+     { "Position": [ -0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
+    ],
+    "verticeso": [
      { "Position": [ -0.7895, 0.325 ], "TexCoord": [ 0, -0.9883 ] },
      { "Position": [ -0.7895, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
     ]
-   },
-   {
-    "Name": "left",
-    "part": "leftfrograil",
-    "DeltaTexCoord": [ 2, 0 ],
-    "Vertices": [
-     { "Position": [ -0.7895, 0.325 ], "TexCoord": [ 0, -0.9883 ] },
-     { "Position": [ -0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
-    ],
-    "vertices0": [
-     { "Position": [ -0.7175, 0.325 ], "TexCoord": [ 0, -0.9883 ] },
-     { "Position": [ -0.7175, 0.325 ], "TexCoord": [ 0, -0.9336 ] }
-    ]
-    }
+   }
    ]
   },
   {
@@ -294,13 +232,13 @@
      { "Position": [ -0.6405, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
      { "Position": [ -0.6675, 0.322 ], "TexCoord": [ 0, -0.9336 ] }
     ],
-    "vertices0": [
+    "verticesi": [
      { "Position": [ -0.6405, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
      { "Position": [ -0.5955, 0.322 ], "TexCoord": [ 0, -0.9336 ] }
     ],
-    "verticesn": [
+    "verticeso": [
      { "Position": [ -0.6405, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
-     { "Position": [ -0.5955, 0.322 ], "TexCoord": [ 0, -0.9336 ] }
+     { "Position": [ -0.6675, 0.322 ], "TexCoord": [ 0, -0.9336 ] }
     ]
     },
    {
@@ -310,6 +248,14 @@
     "Vertices": [
      { "Position": [ -0.5955, 0.322 ], "TexCoord": [ 0, -0.9336 ] },
      { "Position": [ -0.6225, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
+    ],
+    "verticesi": [
+     { "Position": [ -0.6405, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
+     { "Position": [ -0.5955, 0.322 ], "TexCoord": [ 0, -0.9336 ] }
+    ],
+    "verticeso": [
+     { "Position": [ -0.6405, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
+     { "Position": [ -0.6675, 0.322 ], "TexCoord": [ 0, -0.9336 ] }
     ]
     },
    {
@@ -319,6 +265,14 @@
     "Vertices": [
      { "Position": [ 0.6225, 0.185 ], "TexCoord": [ 0, -0.8359 ] },
      { "Position": [ 0.5955, 0.322 ], "TexCoord": [ 0, -0.9336 ] }
+    ],
+    "verticesi": [
+     { "Position": [ 0.5955, 0.322 ], "TexCoord": [ 0, -0.9336 ] },
+     { "Position": [ 0.6405, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
+    ],
+    "verticeso": [
+     { "Position": [ 0.6675, 0.322 ], "TexCoord": [ 0, -0.9336 ] },
+     { "Position": [ 0.6405, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
     ]
     },
    {
@@ -329,12 +283,12 @@
      { "Position": [ 0.6675, 0.322 ], "TexCoord": [ 0, -0.9336 ] },
      { "Position": [ 0.6405, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
     ],
-    "vertices0": [
+    "verticesi": [
      { "Position": [ 0.5955, 0.322 ], "TexCoord": [ 0, -0.9336 ] },
      { "Position": [ 0.6405, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
     ],
-    "verticesn": [
-     { "Position": [ 0.5955, 0.322 ], "TexCoord": [ 0, -0.9336 ] },
+    "verticeso": [
+     { "Position": [ 0.6675, 0.322 ], "TexCoord": [ 0, -0.9336 ] },
      { "Position": [ 0.6405, 0.185 ], "TexCoord": [ 0, -0.8359 ] }
     ]
     },
@@ -380,13 +334,13 @@
      { "Position": [ 0.5955, 0.322 ], "TexCoord": [ 0, 0.9336 ] },
      { "Position": [ 0.6675, 0.322 ], "TexCoord": [ 0, 0.9883 ] }
     ],
-    "vertices0": [
+    "verticesi": [
      { "Position": [ 0.5955, 0.322 ], "TexCoord": [ 0, 0.9336 ] },
      { "Position": [ 0.5955, 0.322 ], "TexCoord": [ 0, 0.9883 ] }
     ],
-    "verticesn": [
-     { "Position": [ 0.5955, 0.322 ], "TexCoord": [ 0, 0.9336 ] },
-     { "Position": [ 0.5955, 0.322 ], "TexCoord": [ 0, 0.9883 ] }
+    "verticeso": [
+     { "Position": [ 0.6675, 0.322 ], "TexCoord": [ 0, 0.9336 ] },
+     { "Position": [ 0.6675, 0.322 ], "TexCoord": [ 0, 0.9883 ] }
     ]
     },
    {
@@ -397,13 +351,13 @@
      { "Position": [ -0.6675, 0.322 ], "TexCoord": [ 0, 0.9883 ] },
      { "Position": [ -0.5955, 0.322 ], "TexCoord": [ 0, 0.9336 ] }
     ],
-    "vertices0": [
+    "verticesi": [
      { "Position": [ -0.5955, 0.322 ], "TexCoord": [ 0, 0.9883 ] },
      { "Position": [ -0.5955, 0.322 ], "TexCoord": [ 0, 0.9336 ] }
     ],
-    "verticesn": [
-     { "Position": [ -0.5955, 0.322 ], "TexCoord": [ 0, 0.9883 ] },
-     { "Position": [ -0.5955, 0.322 ], "TexCoord": [ 0, 0.9336 ] }
+    "verticeso": [
+     { "Position": [ -0.6675, 0.322 ], "TexCoord": [ 0, 0.9883 ] },
+     { "Position": [ -0.6675, 0.322 ], "TexCoord": [ 0, 0.9336 ] }
     ]
     }
    ]

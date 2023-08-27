@@ -448,7 +448,6 @@ def hasCrossing(paths):
     p21= cl2[len(cl2)-1]["point"]
     a1= triArea(p10.x,p10.y,p11.x,p11.y,p20.x,p20.y)
     a2= triArea(p10.x,p10.y,p11.x,p11.y,p21.x,p21.y)
-    print("hascrossing %f %f"%(a1,a2))
     if a1>.1 and a2<-.1: return True
     if a1<-.1 and a2>.1: return True
     return False
@@ -539,19 +538,23 @@ def makeCrossingPartLines(shape):
     partLines= []
     cl1= shape["paths"][0]["centerLine"]
     cl2= shape["paths"][1]["centerLine"]
-    addCrossingRail(partLines,"leftrail",cl1,cl2,-1,2,6,1)
-    addCrossingRail(partLines,"rightrail",cl1,cl2,1,2,9,1)
-    addCrossingRail(partLines,"leftrail",cl2,cl1,-1,2,9,1)
-    addCrossingRail(partLines,"rightrail",cl2,cl1,1,2,6,1)
-    addCrossingGuardRail(partLines,"leftguardrail",cl1,cl2,-1,shape,3,6,6)
-    addCrossingGuardRail(partLines,"rightguardrail",cl1,cl2,1,shape,9,9,6)
-    addCrossingGuardRail(partLines,"leftguardrail",cl2,cl1,-1,shape,9,9,3)
-    addCrossingGuardRail(partLines,"rightguardrail",cl2,cl1,1,shape,3,6,6)
-    copyPerp(cl2,cl1)
-    partLines.append({"part":"ballast","centerLine":cl1,"ends":0})
-    partLines.append({"part":"ties","centerLine":cl1,"ends":0})
-    partLines.append({"part":"ballast","centerLine":cl2,"ends":0})
-    partLines.append({"part":"ties","centerLine":cl2,"ends":0})
+    try:
+        addCrossingRail(partLines,"leftrail",cl1,cl2,-1,2,6,1)
+        addCrossingRail(partLines,"rightrail",cl1,cl2,1,2,9,1)
+        addCrossingRail(partLines,"leftrail",cl2,cl1,-1,2,9,1)
+        addCrossingRail(partLines,"rightrail",cl2,cl1,1,2,6,1)
+        addCrossingGuardRail(partLines,"leftguardrail",cl1,cl2,-1,shape,3,6,6)
+        addCrossingGuardRail(partLines,"rightguardrail",cl1,cl2,1,shape,9,9,6)
+        addCrossingGuardRail(partLines,"leftguardrail",cl2,cl1,-1,shape,9,9,3)
+        addCrossingGuardRail(partLines,"rightguardrail",cl2,cl1,1,shape,3,6,6)
+        copyPerp(cl2,cl1)
+        partLines.append({"part":"ballast","centerLine":cl1,"ends":0})
+        partLines.append({"part":"ties","centerLine":cl1,"ends":0})
+        partLines.append({"part":"ballast","centerLine":cl2,"ends":0})
+        partLines.append({"part":"ties","centerLine":cl2,"ends":0})
+    except:
+        print("cannot find all crossings")
+        return None
     return partLines
 
 # makes a track model for the specified shape

@@ -1,6 +1,7 @@
 {
  "filename": "switch06l.s",
  "mainroute": 1,
+ "guardRailLengths": [ 1.5, 3 ],
  "switchstand": {
   "file": "switchstand.blend",
   "position": [ -2.2, 0.48, 0.16 ],
@@ -12,7 +13,7 @@
    "start": [ 0, 0, 0 ],
    "angle": 0,
    "moves": [
-    [ 101.2882, -11.2768 ]
+    [ 101.2882, -11.2768, 15 ]
    ]
   },
   {

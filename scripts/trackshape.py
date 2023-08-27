@@ -332,6 +332,10 @@ def makeSwitchPartLines(shape):
     derail= ""
     if "derail" in shape:
         derail= shape["derail"]
+    grlen1= 2
+    grlen2= 3
+    if "guardRailLengths" in shape:
+        grlen1,grlen2= shape["guardRailLengths"]
     points0= findCrossing(cl1,cl2,0,0)
     points= findCrossing(cl1,cl2,(f+rh)/2,-(f+rh)/2)
     frogPoint= findCrossing(cl1,cl2,g/2,-g/2)
@@ -358,17 +362,19 @@ def makeSwitchPartLines(shape):
         bpy.context.scene.frame_end= 2
     if frogStart:
         x= frogStart["dist1"]
-        line= copyCenterLine(cl1,x-.1,x,x+1.8,x+2)
+        line= copyCenterLine(cl1,x-.1,x,x+grlen1-.2,x+grlen1)
         partLines.append({"part":"rightguardrail","centerLine":line,"ends":3})
         x= frogStart["dist2"]
-        line= copyCenterLine(cl2,x-.1,x,x+1.8,x+2)
+        line= copyCenterLine(cl2,x-.1,x,x+grlen1-.2,x+grlen1)
         partLines.append({"part":"leftguardrail","centerLine":line,"ends":3})
     if frogPoint:
         x= frogPoint["dist1"]
-        line= copyCenterLine(cl1,x-1,x-.8,x+1.8,x+2)
+        line= copyCenterLine(cl1,x+grlen1-grlen2,x+grlen1-grlen2+.2,
+        x+grlen1-.2,x+grlen1)
         partLines.append({"part":"leftguardrail","centerLine":line,"ends":3})
         x= frogPoint["dist2"]
-        line= copyCenterLine(cl2,x-1,x-.8,x+1.8,x+2)
+        line= copyCenterLine(cl2,x+grlen1-grlen2,x+grlen1-grlen2+.2,
+        x+grlen1-.2,x+grlen1)
         partLines.append({"part":"rightguardrail","centerLine":line,"ends":3})
     partLines.append({"part":"leftrail","centerLine":cl1,"ends":0})
     if derail != "left":

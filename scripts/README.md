@@ -41,7 +41,8 @@ tsection.dat file.
 Paths must be listed in left to right order.
 
 - switch06l.json: 6 degree left switch with switch stand on curved side
-(track shape 38052).
+(track shape 38052).  Contains an example of overriding the default number
+of segments for an curve and guard rail lengths.
 
 - switch06ld.json: 6 degree left switch with curved main route
 (track shape 22697).

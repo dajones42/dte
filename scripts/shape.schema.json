@@ -1,0 +1,103 @@
+{
+ "title": "Track Shape",
+ "description":
+  "Definition of MSTS/OR track shape to be created by trackshape.py",
+ "type": "object",
+ "properties": {
+  "filename": {
+   "description": "name of .s file to be created",
+   "type": "string"
+  },
+  "mainroute": {
+   "description": "path that is main route of switch (required for switch)",
+   "type": "integer",
+   "enum": [ 0, 1 ]
+  },
+  "derail": {
+   "description": "point side for split point derail",
+   "type": "string",
+   "enum": [ "left", "right" ]
+  },
+  "guardRailLengths": {
+   "description": "guard rail lengths for switch and crossing shapes",
+   "type": "array",
+   "items": {
+    "description": "length in meters",
+    "type": "number"
+   },
+   "minItems": 2,
+   "maxItems": 3
+  },
+  "switchstand": {
+   "description": "switch stand model to be attached to switch points",
+   "type": "object",
+   "properties": {
+    "file": {
+     "description": ".blend file that contains switch stand model",
+     "type": "string"
+    },
+    "position": {
+     "description": "location of switch stand relative to track shape",
+     "type": "array",
+     "items": {
+      "type": "number"
+     },
+     "minItems": 3,
+     "maxItems": 3
+    },
+    "rotation": {
+     "description":
+      "rotation of switch stand relative to track shape (degrees)",
+     "type": "number"
+    },
+    "crankRotation": {
+     "description":
+      "rotation of crank part relative to parent part (degrees)",
+     "type": "number"
+    }
+   },
+   "required": [ "filename", "position", "rotation", "crankRotation" ]
+  },
+  "paths": {
+   "description": "paths track is to follow",
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "start": {
+      "description": "coordinates of track starting postion",
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "minItems": 3,
+      "maxItems": 3
+     },
+     "angle": {
+      "description": "path starting angle in degrees",
+      "type": "number"
+     },
+     "moves": {
+      "description": "sequence of straights and/or curves",
+      "type": "array",
+      "items": {
+       "description": "straight:[distance,0] curve:[radius,degrees,segments]",
+       "type": "array",
+       "items": {
+        "description":
+         "distance/radius in meters, negative angle for left turn",
+        "type": "number"
+       },
+       "minItems": 2,
+       "maxItems": 3
+      },
+      "minItems": 1
+     }
+    },
+    "required": [ "start", "angle", "moves" ]
+   },
+   "minItems": 1
+  }
+ },
+ "required": [ "paths" ]
+}

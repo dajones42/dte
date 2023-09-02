@@ -500,7 +500,7 @@ def addCrossingGuardRail(partLines,part,cl1,cl2,sign,shape,ends1,ends2,ends3):
     x1,x2,x3,x4,x5,x6,x7,x8= sorted([x1,x2,x3,x4,x5,x6,x7,x8])
     len1= 1
     len2= 2
-    len3= 2
+    len3= 2.5
     if "guardRailLengths" in shape:
         len1,len2,len3= shape["guardRailLengths"]
     if skew < 0:
@@ -563,11 +563,23 @@ def makeCrossingPartLines(shape):
         return None
     return partLines
 
+# reverse centerline and flip perpendiculars
+def flipCenterLine(cl):
+    cl.reverse()
+    for i in range(len(cl)):
+        perp= cl[i]["perp"]
+        perp.x*= -1
+        perp.y*= -1
+
 # makes a track model for the specified shape
 def makeTrack(shape,profile,collection):
     paths= shape["paths"]
     for path in paths:
         cl= getCenterLine(path)
+    if hasCrossing(paths):
+        angle= paths[1]["angle"]
+        if angle<-90 or angle>90:
+            flipCenterLine(paths[1]["centerLine"])
     paths.sort(key=functools.cmp_to_key(pathCenterLineCmp))
 #    for path in paths:
 #        printCenterLine(path["centerLine"])

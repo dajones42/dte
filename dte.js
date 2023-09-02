@@ -3539,3 +3539,47 @@ let trackTrackInt= function(track1,track2,cp11,cp12,cp21,cp22)
 	}
 	return { d:0 };
 }
+
+let findDynTrackPoint= function(track,cp)
+{
+	let dynTrackPoints= track.dynTrackPoints;
+	for (let j=0; j<dynTrackPoints.length-1; j++) {
+		let dp= dynTrackPoints[j];
+		if (dp.controlPoint == cp)
+			return dp;
+	}
+	return null;
+}
+
+let matchCrossingPoints= function()
+{
+	let crossings= [];
+	for (let i=0; i<tracks.length; i++) {
+		let track= tracks[i];
+		let controlPoints= track.controlPoints;
+		for (let j=0; j<controlPoints.length-1; j++) {
+			let cp= controlPoints[j];
+			if (cp.bridge && cp.bridge=="crossing")
+				crossings.push({track:track,
+				  cp1:cp, cp2:controlPoints[j+1]});
+		}
+	}
+	for (let i=0; i<crossings.length; i++) {
+		let ci= crossings[i];
+		for (let j=i+1; j<crossings.length; j++) {
+			let cj= crossings[j];
+			let pi= trackTrackInt(ci.track,cj.track,ci.cp1,ci.cp2,
+			  cj.cp1,cj.cp2);
+			if (pi.d==0 || pi.s<0 || pi.s>1 || pi.t<0 || pi.t>1)
+				continue;
+			ci.cp1.otherCrossing= cj;
+			cj.cp1.otherCrossing= ci;
+			ci.dtp= findDynTrackPoint(ci.track,ci.cp1);
+			cj.dtp= findDynTrackPoint(cj.track,cj.cp1);
+			if (ci.dtp && cj.dtp) {
+				ci.dtp.otherCrossing= cj;
+				cj.dtp.otherCrossing= ci;
+			}
+		}
+	}
+}

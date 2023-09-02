@@ -1857,6 +1857,7 @@ let saveToRoute= function()
 {
 	calcTrackPointElevations();
 	overrideSwitchShapes();
+	matchCrossingPoints();
 	let tsection= trackDB.tSection;
 	let nextSection= 40000;
 	let nextPath= 40000;
@@ -1940,7 +1941,9 @@ let saveToRoute= function()
 				dp.shape= nextPath;
 				tsection.trackPaths[nextPath]= path;
 				nextPath++;
-				if (dp.bridge)
+				if (dp.bridge && dp.bridge=="crossing")
+					saveCrossingTrackShape(dp);
+				else if (dp.bridge)
 					saveBridgeTrackShape(dp);
 			} else {
 				curve.path= null;
@@ -2018,7 +2021,13 @@ let saveToRoute= function()
 		let wftz= centerTZ + Math.round(y/2048);
 		let tile= findTile(wftx,wftz);
 		let uid= tile.nextUid;
-		if (point.bridge && point.bridge!="turntable" &&
+		if (point.bridge && point.bridge=="crossing") {
+			let filename= "crossing" +
+			  curve.shapeID.toFixed(0) + ".s";
+			if (point.drawModel)
+				addModel(filename,x,y,z,dir.x,dir.y,
+				  curve.elevation);
+		} else if (point.bridge && point.bridge!="turntable" &&
 		  point.bridge!="norails") {
 			let filename=
 			  ((point.bridge=="ptbd" || point.bridge=="tdbd") ?
@@ -2289,7 +2298,8 @@ let saveToRoute= function()
 			if (cp.bridge) {
 				if (!prevBridge && j>0)
 					addBridgeEndModel(track,cp,true);
-				prevBridge= cp.bridge!="turntable";
+				prevBridge= cp.bridge!="turntable" &&
+				  cp.bridge!="crossing";
 			} else if (prevBridge &&
 			  j<controlPoints.length-1) {
 				addBridgeEndModel(track,cp,false);
@@ -4296,7 +4306,8 @@ let addBridgeEndModel= function(track,cp,reverse)
 {
 	if (track.type=="road" || track.type == "road1" ||
 	  track.type == "dirtroad" || track.type == "dirtroad1" ||
-	  cp.bridge=="turntable" || cp.bridge=="norails")
+	  cp.bridge=="turntable" || cp.bridge=="norails" ||
+	  cp.bridge=="crossing")
 		return;
 	let tp= track.trackPoints[cp.trackPoint];
 	let dx= cp.direction.x;
@@ -4781,11 +4792,8 @@ let setContourElevation= function()
 	}
 }
 
-let saveBridgeTrackShape= function(dp)
+let getCurveMoves= function(curve)
 {
-	let curve= dp.curve;
-	let filename= ((dp.bridge=="ptbd" || dp.bridge=="tdbd") ?
-	  "brdgtrackbd" : "brdgtracktd") + curve.shapeID.toFixed(0);
 	let moves= [];
 	if (curve.len1 > .01) {
 		moves.push([curve.len1,0]);
@@ -4796,10 +4804,54 @@ let saveBridgeTrackShape= function(dp)
 	if (curve.len2 > .01) {
 		moves.push([curve.len2,0]);
 	}
+	return moves;
+}
+
+let saveBridgeTrackShape= function(dp)
+{
+	let curve= dp.curve;
+	let filename= ((dp.bridge=="ptbd" || dp.bridge=="tdbd") ?
+	  "brdgtrackbd" : "brdgtracktd") + curve.shapeID.toFixed(0);
+	let moves= getCurveMoves(curve);
 	let data= { 
 	  filename: filename+".s",
 	  paths: [ { start: [0,0,0], angle: 0, moves: moves } ]
 	};
+	let s= JSON.stringify(data,null,1);
+	let path= routeDir+fspath.sep+"SHAPES"+fspath.sep+filename+".json";
+	fs.writeFileSync(path,s);
+}
+
+let saveCrossingTrackShape= function(point1)
+{
+	let curve1= point1.curve;
+	let filename= "crossing" + curve1.shapeID.toFixed(0);
+	let moves= getCurveMoves(curve1);
+	let data= {
+	  filename: filename+".s",
+	  paths: [ { start: [0,0,0], angle: 0, moves: moves } ]
+	};
+	point1.drawModel= true;
+	if (point1.otherCrossing) {
+		let x1= point1.position.x;
+		let y1= point1.position.y;
+		let dir1= point1.direction;
+		let angle1= Math.atan2(dir1.y,dir1.x);
+		let point2= point1.otherCrossing.dtp;
+		let x2= point2.position.x;
+		let y2= point2.position.y;
+		let dir2= point2.direction;
+		let angle2= Math.atan2(dir2.y,dir2.x);
+		let curve2= point2.curve;
+		let zero= new THREE.Vector2(0,0);
+		let start2=
+		  new THREE.Vector2(x2-x1,y2-y1).rotateAround(zero,-angle1);
+		let da= angle2-angle1;
+		data.paths.push({ start: [-start2.y,0,start2.x],
+		  angle: -180*da/Math.PI, moves: getCurveMoves(curve2) });
+		if (curve1.shapeID > curve2.shapeID)
+			point1.drawModel= false;
+	}
 	let s= JSON.stringify(data,null,1);
 	let path= routeDir+fspath.sep+"SHAPES"+fspath.sep+filename+".json";
 	fs.writeFileSync(path,s);

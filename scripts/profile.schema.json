@@ -1,0 +1,135 @@
+{
+ "title": "Track Profile",
+ "description": "Definition of MSTS/OR track profile for trackshape.py",
+ "type": "object",
+ "properties": {
+  "Name": {
+   "description": "descriptive name of profile",
+   "type": "string"
+  },
+  "gauge": {
+   "description": "track gauge in meters",
+   "type": "number"
+  },
+  "railhead": {
+   "description": "rail head width in meters",
+   "type": "number"
+  },
+  "flangeway": {
+   "description": "flange way width in meters",
+   "type": "number"
+  },
+  "parts": {
+   "description": "indicates profile contains part names",
+   "type": "boolean"
+  },
+  "LODs": {
+   "description": "lever of detail information",
+   "type": "array",
+   "items": {
+    "description": "lever of detail information",
+    "type": "object",
+    "properties": {
+     "CutoffRadius": {
+      "description": "viewing distance in meters",
+      "type": "number"
+     },
+     "Name": {
+      "description": "name of part",
+      "type": "string"
+     },
+     "TexName": {
+      "description": "name of texture file applied to part",
+      "type": "string"
+     },
+     "ShaderName": {
+      "description": "name of shader used to render part",
+      "type": "string",
+      "enum": [ "BlendATexDiff", "TexDiff" ]
+     },
+     "LightModelName": {
+      "description": "name of light model used to render part",
+      "type": "string",
+      "enum": [ "OptSpecular25", "OptSpecular750", "OptSpecular0" ]
+     },
+     "MipMapLevelOfDetailBias": {
+      "description": "mipmap level of detail bias",
+      "type": "number"
+     },
+     "Polylines": {
+      "description": "track cross section information",
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "Name": {
+         "description": "comment",
+         "type": "string"
+        },
+        "part": {
+         "description": "name of track part",
+         "type": "string",
+         "enum": [ "ballast", "ties", "leftrail", "rightrail",
+          "leftguardrail", "rightguardrail" ]
+        },
+        "DeltaTexCoord": {
+         "description": "texture coordinate change per meter down track",
+         "type": "array",
+         "items": {
+          "description": "u and v coordinates",
+          "type": "number"
+         },
+         "minItems": 2,
+         "maxItems": 2
+        },
+        "Vertices": {
+         "description": "points defining cross section",
+         "type": "array",
+         "items": {
+          "description": "a single point on cross section",
+          "type": "object",
+          "properties": {
+           "Position": {
+            "description": "coordinates for cross section point",
+            "type": "array",
+            "items": {
+             "description":
+              "width and height coordinates meters, negative width for left",
+             "type": "number"
+            },
+            "minItems": 2,
+            "maxItems": 2
+           },
+           "TexCoord": {
+            "description": "texture coordinates for point",
+            "type": "array",
+            "items": {
+             "description": "u and v coordinates",
+             "type": "number"
+            },
+            "minItems": 2,
+            "maxItems": 2
+           }
+          },
+          "required": [ "Position", "TexCoord" ]
+         },
+         "minItems": 2
+        },
+        "verticesi": {
+         "description": "vertex info for rail end taper to inside"
+        },
+        "verticeso": {
+         "description": "vertex info for rail end taper to outside"
+        }
+       },
+       "required": [ "DeltaTexCoord", "Vertices" ]
+      }
+     }
+    },
+    "required": [ "CutoffRadius", "Name", "TexName", "ShaderName",
+     "LightModelName", "MipMapLevelOfDetailBias", "Polylines" ]
+   }
+  }
+ },
+ "required": [ "LODs" ]
+}

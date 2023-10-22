@@ -2556,9 +2556,11 @@ let paintTileImage= function(context,wid,ht,tile)
 	for (let i=0; i<16; i++) {
 		for (let j=0; j<16; j++) {
 			let pd= tile.patchDistance[i*16+j];
-			let a= 1;
+			let a= .8;
 			if (pd > 1)
-				a= 1-.1*(pd-1);
+				a= .8-.1*(pd-1);
+			if (a < .5)
+				a= .5;
 			if (a <= 0)
 				continue;
 			context.globalAlpha= a;
@@ -4270,8 +4272,9 @@ let overrideSwitchShapes= function()
 	trackDB.tSection.shapes[38050].filename= routeShapes1+"switch03l.s";
 	trackDB.tSection.shapes[38051].filename= routeShapes1+"switch03r.s";
 	trackDB.tSection.shapes[19768].filename= routeShapes1+"switch03y.s";
-	trackDB.tSection.shapes[38052].filename= routeShapes+"switch06l.s";
-	trackDB.tSection.shapes[38053].filename= routeShapes+"switch06r.s";
+	trackDB.tSection.shapes[38052].filename= routeShapes1+"switch06l.s";
+	trackDB.tSection.shapes[38053].filename= routeShapes1+"switch06r.s";
+	trackDB.tSection.shapes[19762].filename= routeShapes1+"switch06y.s";
 	trackDB.tSection.shapes[22697].filename= routeShapes+"switch06ld.s";
 	trackDB.tSection.shapes[22698].filename= routeShapes+"switch06rd.s";
 	trackDB.tSection.shapes[32246].filename= routeShapes+"switch06lx.s";
@@ -4279,6 +4282,9 @@ let overrideSwitchShapes= function()
 	trackDB.tSection.shapes[39829].filename= routeShapes+"derail.s";
 	trackDB.tSection.shapes[39830].filename= routeShapes+"derail.s";
 	trackDB.tSection.shapes[24799].filename= routeShapes+"derail.s";
+	trackDB.tSection.shapes[38048].filename= routeShapes1+"stub06l.s";
+	trackDB.tSection.shapes[38049].filename= routeShapes1+"stub06r.s";
+	trackDB.tSection.shapes[19760].filename= routeShapes1+"stub06y.s";
 }
 
 let addModel= function(filename,x,y,z,dx,dy,grade) {

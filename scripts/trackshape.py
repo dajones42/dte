@@ -113,6 +113,13 @@ def getCenterLine(path):
     path["centerLine"]= cl
     return cl
 
+def makeStraight(x1,x2):
+    cl= []
+    dir= headingVector(0)
+    cl.append({ "point":dir*x1, "perp":headingVector(90) })
+    cl.append({ "point":dir*x2, "perp":headingVector(90) })
+    return cl
+
 # prints the given center line for debugging
 def printCenterLine(centerLine):
     for i in range(len(centerLine)):
@@ -329,6 +336,9 @@ def makeSwitchPartLines(shape):
     g= profile["gauge"]
     rh= profile["railhead"]
     f= profile["flangeway"]
+    stub= False
+    if "stub" in shape:
+        stub= shape["stub"]
     derail= ""
     if "derail" in shape:
         derail= shape["derail"]
@@ -351,14 +361,30 @@ def makeSwitchPartLines(shape):
     if points0 and points:
         d= points["dist1"]-points0["dist1"]
         a= math.asin((f+rh)/d)
-        pivot1= points["pi"]+mathutils.Vector([-g/2,0,0])
-        pivot2= points["pi"]+mathutils.Vector([g/2,0,0])
-        if shape["mainroute"]:
-            animL= {"pivot":pivot1,"angle0":0,"angle1":a}
-            animR= {"pivot":pivot2,"angle0":-a,"angle1":0}
+        if stub:
+            pivot1= points0["pi"]+mathutils.Vector([-g/2,0,0])
+            pivot2= points0["pi"]+mathutils.Vector([g/2,0,0])
+            if shape["mainroute"] and points["pi"].x<0:
+                animL= {"pivot":pivot1,"angle0":0,"angle1":a}
+                animR= {"pivot":pivot2,"angle0":0,"angle1":a}
+            elif shape["mainroute"]:
+                animL= {"pivot":pivot1,"angle0":-a,"angle1":0}
+                animR= {"pivot":pivot2,"angle0":-a,"angle1":0}
+            elif points["pi"].x<0:
+                animL= {"pivot":pivot1,"angle0":a,"angle1":0}
+                animR= {"pivot":pivot2,"angle0":a,"angle1":0}
+            else:
+                animL= {"pivot":pivot1,"angle0":0,"angle1":-a}
+                animR= {"pivot":pivot2,"angle0":0,"angle1":-a}
         else:
-            animL= {"pivot":pivot1,"angle0":a,"angle1":0}
-            animR= {"pivot":pivot2,"angle0":0,"angle1":-a}
+            pivot1= points["pi"]+mathutils.Vector([-g/2,0,0])
+            pivot2= points["pi"]+mathutils.Vector([g/2,0,0])
+            if shape["mainroute"]:
+                animL= {"pivot":pivot1,"angle0":0,"angle1":a}
+                animR= {"pivot":pivot2,"angle0":-a,"angle1":0}
+            else:
+                animL= {"pivot":pivot1,"angle0":a,"angle1":0}
+                animR= {"pivot":pivot2,"angle0":0,"angle1":-a}
         bpy.context.scene.frame_end= 2
     if frogStart:
         x= frogStart["dist1"]
@@ -376,14 +402,34 @@ def makeSwitchPartLines(shape):
         line= copyCenterLine(cl2,x+grlen1-grlen2,x+grlen1-grlen2+.2,
         x+grlen1-.2,x+grlen1)
         partLines.append({"part":"rightguardrail","centerLine":line,"ends":3})
-    partLines.append({"part":"leftrail","centerLine":cl1,"ends":0})
+    if stub and points0 and points:
+        y= points0["dist1"]
+        x= points["dist1"]
+        if y>0:
+            line= copyCenterLine(cl1,None,0,y,None)
+            partLines.append({"part":"leftrail","centerLine":line,"ends":0})
+            line= copyCenterLine(cl2,None,0,y,None)
+            partLines.append({"part":"rightrail","centerLine":line,"ends":0})
+        line= copyCenterLine(cl1,None,x,1000,None)
+        partLines.append({"part":"leftrail","centerLine":line,"ends":0})
+        line= copyCenterLine(cl2,None,x,1000,None)
+        partLines.append({"part":"rightrail","centerLine":line,"ends":0})
+    else:
+        partLines.append({"part":"leftrail","centerLine":cl1,"ends":0})
+        partLines.append({"part":"rightrail","centerLine":cl2,"ends":0})
     if derail != "left":
         if points0 and points:
             y= points0["dist1"]
             x= points["dist1"]
             if y==0: y=.001
-            line= copyCenterLine(cl1,y,(x+y)/2,x,None)
-            partLines.append({"part":"rightrail","centerLine":line,"ends":1,"anim":animR})
+            if stub:
+                line= makeStraight(y,x)
+                partLines.append({"part":"rightrail","centerLine":line,
+                "ends":0,"anim":animR})
+            else:
+                line= copyCenterLine(cl1,y,(x+y)/2,x,None)
+                partLines.append({"part":"rightrail","centerLine":line,
+                "ends":1,"anim":animR})
             if frogStartL:
                 y= frogStartL["dist1"]
                 z= frogStartLRH["dist1"]
@@ -405,14 +451,19 @@ def makeSwitchPartLines(shape):
         y= frogPointRH["dist1"]
         line= copyCenterLine(cl1,x,y,1000,None)
         partLines.append({"part":"rightrail","centerLine":line,"ends":1})
-    partLines.append({"part":"rightrail","centerLine":cl2,"ends":0})
     if derail != "right":
         if points0 and points:
             y= points0["dist2"]
             x= points["dist2"]
             if y==0: y=.001
-            line= copyCenterLine(cl2,y,(x+y)/2,x,None)
-            partLines.append({"part":"leftrail","centerLine":line,"ends":1,"anim":animL})
+            if stub:
+                line= makeStraight(y,x)
+                partLines.append({"part":"leftrail","centerLine":line,
+                "ends":0,"anim":animL})
+            else:
+                line= copyCenterLine(cl2,y,(x+y)/2,x,None)
+                partLines.append({"part":"leftrail","centerLine":line,
+                "ends":1,"anim":animL})
             if frogStartR:
                 y= frogStartR["dist2"]
                 z= frogStartRRH["dist2"]

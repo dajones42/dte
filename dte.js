@@ -1072,6 +1072,10 @@ let alignStraight= function()
 //	If the is a switch associated with p, it will be rotated if needed.
 let moveToLine= function(p,p1,p2)
 {
+	console.log("align p "+p.position.x+" "+p.position.y);
+	console.log("align p1 "+p1.position.x+" "+p1.position.y);
+	if (p2)
+		console.log("align p2 "+p2.position.x+" "+p2.position.y);
 	let dx= p2 ? p2.position.x-p1.position.x : p1.direction.x;
 	let dy= p2 ? p2.position.y-p1.position.y : p1.direction.y;
 	let d= dx*dx + dy*dy;
@@ -1081,8 +1085,7 @@ let moveToLine= function(p,p1,p2)
 		d= 2*n;
 	p.position.x= p1.position.x + dx*n/d;
 	p.position.y= p1.position.y + dy*n/d;
-	console.log("align "+p.position.x+" "+p.position.y+" "+
-	  dx+" "+dy+" "+n+" "+d);
+	console.log("align "+dx+" "+dy+" "+n+" "+d);
 	if (p.sw) {
 		let p0= p.sw.points[0];
 		let p1= p.sw.points[1];
@@ -1130,7 +1133,7 @@ let alignSwitch= function()
 		let track= findTrack(cp);
 		let controlPoints= track.controlPoints;
 		let n= controlPoints.length;
-//		console.log("far "+index+" "+(cp==controlPoints[0])+" "+n);
+		console.log("far "+index+" "+(cp==controlPoints[0])+" "+n);
 		if (cp == controlPoints[0])
 			return farStraightPoint(controlPoints[1],1,track);
 //			return controlPoints[1];
@@ -2822,29 +2825,39 @@ let farStraightPoint= function(start,di,track)
 {
 	let otherSwStraight= function(cp) {
 		let sw= cp.sw;
+		for (let i=0; i<2; i++)
+			if (sw.points[i]==cp && sw.angles[i]!=0)
+				return cp;
 		for (let i=0; i<2; i++) {
-			if (sw.angle[i] != 0)
+			if (sw.angles[i] != 0)
 				continue;
-			if (sw.point[0] == cp)
-				return farStraightPoint(sw.point[i+1],0);
+			if (sw.points[0] == cp)
+				return farStraightPoint(sw.points[i+1],0);
 			else
-				return farStraightPoint(sw.point[0],0);
+				return farStraightPoint(sw.points[0],0);
 		}
+		console.log("no other straight");
 		return cp;
 	}
 	if (!track)
 		track= findTrack(start);
 	let controlPoints= track.controlPoints;
 	let index= controlPoints.indexOf(start);
-	console.log("farsp "+index+" "+di);
-	if (di==0 && index==0)
+	console.log("farsp "+index+" "+di+" "+
+	  start.position.x+" "+start.position.y);
+	if (di==0 && index==0) {
 		di= 1;
-	else if (di == 0)
-		di= -1;
-	if (di < 0) {
 		if (!start.straight)
 			return start;
-		for (let i=index-1; i>=0; i--) {
+		index= 1;
+	} else if (di == 0) {
+		di= -1;
+		index--;
+	} else if (di<0 && !start.straight) {
+		return start;
+	}
+	if (di < 0) {
+		for (let i=index; i>=0; i--) {
 			let cp= controlPoints[i];
 			console.log(" cp "+i+" "+cp.position.x+" "+cp.position.y);
 			if (!cp.straight)

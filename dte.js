@@ -1037,18 +1037,21 @@ let alignStraight= function()
 		calcTrack();
 		renderCanvas();
 	} else if (i>0 && controlPoints[i].straight &&
-	  controlPoints[i-1].forcedDirection) {
+	  controlPoints[i-1].forcedDirection && !controlPoints[i-1].sw) {
 		moveToLine(selected,controlPoints[i-1]);
 		calcTrack();
 		renderCanvas();
 	} else if (i<controlPoints.length-1 && controlPoints[i].straight &&
-	  controlPoints[i+1].forcedDirection) {
+	  controlPoints[i+1].forcedDirection && !controlPoints[i+1].sw) {
 		moveToLine(selected,controlPoints[i+1]);
 		calcTrack();
 		renderCanvas();
 	} else if (selected.straight && i>0 && controlPoints[i-1].straight &&
 	  i<controlPoints.length-1) {
-		moveToLine(selected,controlPoints[i-1],controlPoints[i+1]);
+		let fp1= farStraightPoint(controlPoints[i-1],-1,selectedTrack);
+		let fp2= farStraightPoint(controlPoints[i+1],1,selectedTrack);
+		moveToLine(selected,fp1,fp2);
+//		moveToLine(selected,controlPoints[i-1],controlPoints[i+1]);
 		calcTrack();
 		renderCanvas();
 	} else if (selected.straight && i<controlPoints.length-2 &&
@@ -1078,7 +1081,8 @@ let moveToLine= function(p,p1,p2)
 		d= 2*n;
 	p.position.x= p1.position.x + dx*n/d;
 	p.position.y= p1.position.y + dy*n/d;
-//	console.log("align "+dx+" "+dy+" "+n+" "+d);
+	console.log("align "+p.position.x+" "+p.position.y+" "+
+	  dx+" "+dy+" "+n+" "+d);
 	if (p.sw) {
 		let p0= p.sw.points[0];
 		let p1= p.sw.points[1];
@@ -1096,8 +1100,8 @@ let moveToLine= function(p,p1,p2)
 			p0.position.x= p.position.x - cos*o.x*csg + sin*o.y;
 			p0.position.y= p.position.y - cos*o.y - sin*o.x*csg;
 		}
-//		console.log("alignsw "+p.sw.angle+" "+i+" "+dx+" "+dy+" "+
-//		  dot);
+		console.log("alignsw "+p.sw.angle+" "+i+" "+dx+" "+dy+" "+
+		  dot);
 	}
 }
 
@@ -1128,9 +1132,11 @@ let alignSwitch= function()
 		let n= controlPoints.length;
 //		console.log("far "+index+" "+(cp==controlPoints[0])+" "+n);
 		if (cp == controlPoints[0])
-			return controlPoints[1];
+			return farStraightPoint(controlPoints[1],1,track);
+//			return controlPoints[1];
 		else
-			return controlPoints[n-2];
+			return farStraightPoint(controlPoints[n-2],-1,track);
+//			return controlPoints[n-2];
 	}
 	let alignTwoStraights= function(index) {
 		let cp= sw.points[index];
@@ -1203,7 +1209,10 @@ let alignSwitch= function()
 		sw.angle= Math.atan2(d1.y,d1.x);
 //		console.log("pi "+pi.x+" "+pi.y+" "+offset+" "+sw.angle);
 	}
+	console.log("alignSw "+isStraight(0)+" "+isStraight(1)+" "+
+	  isStraight(2));
 	if (isStraight(0)) {
+		console.log("straight 0");
 		let fp0= farPoint(0);
 		for (let i=0; i<2; i++) {
 			if (sw.angles[i]!=0 && isStraight(i+1)) {
@@ -1216,7 +1225,7 @@ let alignSwitch= function()
 				}
 			}
 		}
-		if (fp0.forcedDirection) {
+		if (fp0.forcedDirection && !fp0.sw) {
 			moveToLine(sw.points[0],fp0);
 			return 1;
 		} else {
@@ -1228,7 +1237,11 @@ let alignSwitch= function()
 				}
 			}
 		}
+		console.log("fp0 "+fp0.position.x+" "+fp0.position.y);
+		moveToLine(sw.points[0],fp0,sw.points[0]);
+		return 1;
 	} else if (isStraight(1) && isStraight(2)) {
+		console.log("straight 12");
 		let fp1= farPoint(1);
 		let fp2= farPoint(2);
 		if (fp1.forcedDirection && sw.angles[0]==0) {
@@ -1249,15 +1262,19 @@ let alignSwitch= function()
 			return 1;
 		}
 	} else if (isStraight(1)) {
+		console.log("straight 1");
 		if (alignTwoStraights(1))
 			return 1;
-//		moveToLine(p1,fp1);
-//		return 1;
+		let fp1= farPoint(1);
+		moveToLine(sw.points[1],sw.points[1],fp1);
+		return 1;
 	} else if (isStraight(2)) {
+		console.log("straight 2");
 		if (alignTwoStraights(2))
 			return 1;
-//		moveToLine(sw.points[2],fp2);
-//		return 1;
+		let fp2= farPoint(2);
+		moveToLine(sw.points[2],sw.points[2],fp2);
+		return 1;
 	}
 	return 0;
 }
@@ -1694,11 +1711,11 @@ let assignElevation= function(track,points)
 				p.elevation-= x*x*offset1;
 			}
 //			if (track == selectedTrack)
-			if (cp0 == selected)
-			console.log("elev "+i+" "+j+" "+p.elevation+" "+
-			  (a*cp1.position.z + (1-a)*cp0.position.z)+" "+
+//			if (cp0 == selected)
+//			console.log("elev "+i+" "+j+" "+p.elevation+" "+
+//			  (a*cp1.position.z + (1-a)*cp0.position.z)+" "+
 //			  a+" "+d0+" "+d1);
-			  a+" "+p.distance+" "+p.trackPoint);
+//			  a+" "+p.distance+" "+p.trackPoint);
 			if (p.controlPoint == cp1)
 				break;
 		}
@@ -2799,6 +2816,55 @@ let cutAndFill= function(cut)
 	}
 	makeGroundPoints(selectedTrack,false);
 	renderCanvas();
+}
+
+let farStraightPoint= function(start,di,track)
+{
+	let otherSwStraight= function(cp) {
+		let sw= cp.sw;
+		for (let i=0; i<2; i++) {
+			if (sw.angle[i] != 0)
+				continue;
+			if (sw.point[0] == cp)
+				return farStraightPoint(sw.point[i+1],0);
+			else
+				return farStraightPoint(sw.point[0],0);
+		}
+		return cp;
+	}
+	if (!track)
+		track= findTrack(start);
+	let controlPoints= track.controlPoints;
+	let index= controlPoints.indexOf(start);
+	console.log("farsp "+index+" "+di);
+	if (di==0 && index==0)
+		di= 1;
+	else if (di == 0)
+		di= -1;
+	if (di < 0) {
+		if (!start.straight)
+			return start;
+		for (let i=index-1; i>=0; i--) {
+			let cp= controlPoints[i];
+			console.log(" cp "+i+" "+cp.position.x+" "+cp.position.y);
+			if (!cp.straight)
+				return controlPoints[i+1];
+			if (cp.sw)
+				return otherSwStraight(cp);
+		}
+		return controlPoints[0];
+	} else {
+		let n= controlPoints.length;
+		for (let i=index; i<n; i++) {
+			let cp= controlPoints[i];
+			console.log(" cp "+i+" "+cp.position.x+" "+cp.position.y);
+			if (cp.sw)
+				return otherSwStraight(cp);
+			if (!cp.straight)
+				return cp;
+		}
+		return controlPoints[n-1];
+	}
 }
 
 //	Creates a selectedGroup array that includes control points

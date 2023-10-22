@@ -130,7 +130,7 @@ let renderProfile= function()
 		centerD= selected.distance;
 		calcProfileOffset();
 	}
-	console.log("center "+centerD+" "+centerE);
+//	console.log("center "+centerD+" "+centerE);
 	let controlPoints= selectedTrack.controlPoints;
 	let groundPoints= selectedTrack.groundPoints;
 	context.strokeWidth= 1;

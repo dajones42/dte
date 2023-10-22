@@ -399,8 +399,8 @@ let mapMouseDown= function(event)
 		centerU-= (width/2-downX)/scale;
 		centerV+= (height/2-downY)/scale;
 		let ll= uv2ll(centerU,centerV);
-		console.log('center '+centerU+' '+centerV+' '+scale+' '+
-		  ll.lat+' '+ll.lng);
+//		console.log('center '+centerU+' '+centerV+' '+scale+' '+
+//		  ll.lat+' '+ll.lng);
 		renderCanvas();
 	} else {
 		let bestD= 40;

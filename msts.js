@@ -730,7 +730,7 @@ let getTileElevation= function(tx,tz,x,z,orig)
 	let wz= (z-z0)/8;
 	let tile= findTile(tx,tz);
 	if (!tile) {
-		console.log("cant find "+tx+" "+tz);
+//		console.log("cant find tile "+tx+" "+tz);
 		return 0;
 	}
 	let a00= getTerrainElevation(i,j,tile,orig);
@@ -2546,6 +2546,18 @@ let mapTerrainColor= function(value,color)
 	let x= value/255;
 	return 255*(.7*x + .1*x*x);
 }
+let mapOsgeColor= function(pixel)
+{
+	pixel[0]= .003207*255 + .554979*pixel[0];
+	pixel[1]= -.028129*255 + .651279*pixel[1];
+	pixel[2]= -.085967*255 + .531048*pixel[2];
+//	pixel[0]= -.074606*255 + .757793*pixel[0];
+//	pixel[1]= -.300494*255 + 1.169331*pixel[1];
+//	pixel[2]= -.304928*255 + .971218*pixel[2];
+//	pixel[0]= -.159644*255 + 1.009926*pixel[0];
+//	pixel[1]= -.365961*255 + 1.350956*pixel[1];
+//	pixel[2]= -.503296*255 + 1.380556*pixel[2];
+}
 
 let paintTileImage= function(context,wid,ht,tile)
 {
@@ -2606,12 +2618,25 @@ let saveTileImage= function()
 			}
 		}
 	}
+	let mapOsgeColors= function() {
+		if (mapType!="osge" && mapType!="osgehydro")
+			return;
+		for (let x=0; x<sz; x++) {
+			for (let y=0; y<sz; y++) {
+				let idata= context.getImageData(x,y,1,1);
+				let pixel= idata.data;
+				mapOsgeColor(pixel);
+				context.putImageData(idata,x,y);
+			}
+		}
+	}
 	let paint= true;
 	for (let i=0; i<backgroundTiles.length; i++) {
 		let bgt= backgroundTiles[i];
 		if (!bgt.image)
 			continue;
 		if (bgt.zoom==20 && paint) {
+			mapOsgeColors();
 			paintBackground(context,scale,width,height,cu,cv);
 			paintTileImage(context,canvas.width,canvas.height,tile);
 			paint= false;
@@ -2635,6 +2660,7 @@ let saveTileImage= function()
 //		console.log("bgt "+bgt.u+" "+bgt.v+" "+w+" "+h+" "+su+" "+sv);
 	}
 	if (paint) {
+		mapOsgeColors();
 		paintBackground(context,scale,width,height,cu,cv);
 		paintTileImage(context,canvas.width,canvas.height,tile);
 		paint= false;

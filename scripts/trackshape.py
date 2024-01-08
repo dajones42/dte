@@ -631,6 +631,13 @@ def makeTrack(shape,profile,collection):
         angle= paths[1]["angle"]
         if angle<-90 or angle>90:
             flipCenterLine(paths[1]["centerLine"])
+    tunnel= None
+    if "tunnel" in shape:
+        tunnel= shape["tunnel"]
+        if "path" in tunnel:
+            getCenterLine(tunnel["path"])
+        else:
+            tunnel["path"]= paths[0]
     paths.sort(key=functools.cmp_to_key(pathCenterLineCmp))
 #    for path in paths:
 #        printCenterLine(path["centerLine"])
@@ -657,6 +664,10 @@ def makeTrack(shape,profile,collection):
                 makeMesh(lod,shape,"leftrail",cl,0,None)
                 makeMesh(lod,shape,"ballast",cl,0,None)
                 makeMesh(lod,shape,"ties",cl,0,None)
+            if tunnel:
+                path= tunnel["path"]
+                cl= path["centerLine"]
+                makeMesh(lod,shape,tunnel["part"],cl,0,None)
         else:
             for path in paths:
                 cl= path["centerLine"]

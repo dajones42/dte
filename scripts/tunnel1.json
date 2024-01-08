@@ -1,0 +1,15 @@
+{
+ "filename": "tunnel1.s",
+ "paths": [
+  {
+   "start": [ 0, 0, 0 ],
+   "angle": 0,
+   "moves": [
+    [ 20, 0 ]
+   ]
+  }
+ ],
+ "tunnel": {
+  "part": "tunnel1"
+ }
+}

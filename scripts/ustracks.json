@@ -54,6 +54,47 @@
  },
  {
   "CutoffRadius": 1000,
+   "Name": "tunnel1",
+   "TexName": "ATrackTunWall.ace",
+   "ShaderName": "TexDiff",
+   "LightModelName": "OptSpecular0",
+   "MipMapLevelOfDetailBias": -1,
+   "Polylines": [ {
+    "Name": "tunnel1",
+    "part": "tunnel1",
+    "DeltaTexCoord": [ 0, 0.2 ],
+    "Vertices": [
+     { "Position": [ 2.5, 0.136 ], "TexCoord": [ 0.6457, 0 ] },
+     { "Position": [ 2.5, 8.0 ], "TexCoord": [ 0.6457, 0 ] },
+     { "Position": [ 0, 10.0 ], "TexCoord": [ 0.375, 0 ] },
+     { "Position": [ -2.5, 8.0 ], "TexCoord": [ 0.6457, 0 ] },
+     { "Position": [ -2.5, 0.136 ], "TexCoord": [ 0.1043, 0 ] }
+    ]
+   } ]
+ },
+ {
+  "CutoffRadius": 1000,
+   "Name": "tunnel2",
+   "TexName": "ATrackTunWall.ace",
+   "ShaderName": "TexDiff",
+   "LightModelName": "OptSpecular0",
+   "MipMapLevelOfDetailBias": -1,
+   "Polylines": [ {
+    "Name": "tunnel2",
+    "part": "tunnel2",
+    "DeltaTexCoord": [ 0, 0.2 ],
+    "Vertices": [
+     { "Position": [ 5.0, 0.136 ], "TexCoord": [ 0.6457, 0 ] },
+     { "Position": [ 5.0, 8.0 ], "TexCoord": [ 0.6457, 0 ] },
+     { "Position": [ 2.5, 10.0 ], "TexCoord": [ 0.375, 0 ] },
+     { "Position": [ -2.5, 10.0 ], "TexCoord": [ 0.375, 0 ] },
+     { "Position": [ -5.0, 8.0 ], "TexCoord": [ 0.6457, 0 ] },
+     { "Position": [ -5.0, 0.136 ], "TexCoord": [ 0.1043, 0 ] }
+    ]
+   } ]
+ },
+ {
+  "CutoffRadius": 1000,
    "Name": "Ties",
    "TexName": "US_Track3s.ace",
    "ShaderName": "BlendATexDiff",

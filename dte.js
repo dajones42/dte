@@ -192,6 +192,7 @@ let convertTrackDB= function()
 		for (let i=0; i<node.pins.length; i++)
 			if (node.pins[i].node == id)
 				return i;
+		console.log("bad pin "+node.id+" "+id);
 		return -1;
 	}
 	let getPoints= function(node,pin) {
@@ -199,6 +200,63 @@ let convertTrackDB= function()
 			return 0;
 		let shape= trackDB.tSection.shapes[node.sw.shapeID];
 		return shape.paths[pin-1].sections.length;
+	}
+	let printEndNode= function(node) {
+		console.log("node "+node.id +" "+node.shape+
+		  " "+node.wftx+" "+node.wftz+" "+node.wfuid+" "+node.unk);
+		console.log(" position "+node.tx+" "+node.tz+
+		  " "+node.x+" "+node.y+" "+node.z);
+		console.log(" angles "+node.ax+" "+node.ay+" "+node.az);
+	}
+	let printSections= function(node,track,node1,node2) {
+		printEndNode(node1);
+		console.log("node "+node.id);
+		for (let j=0; j<node.sections.length; j++) {
+			let section= node.sections[j];
+			console.log(" section "+j+
+			  " "+section.sectionID+" "+section.shapeID+
+			  " "+section.wftx+" "+section.wftz+" "+section.wfuid+
+			  " "+section.flag1+" "+section.flag2+
+			  " "+section.flag3);
+			console.log("  position "+section.tx+" "+section.tz+
+			  " "+section.x+" "+section.y+" "+section.z);
+			console.log("  angles "+section.ax+" "+section.ay+
+			  " "+section.az);
+			let tsection=
+			  trackDB.tSection.sections[section.sectionID];
+			if (tsection && tsection.length)
+				console.log("  straight "+tsection.length);
+			else if (tsection)
+				console.log("  curve "+tsection.radius+
+				  " "+tsection.angle);
+			else
+				console.log("  unknown");
+		}
+		let controlPoints= track.controlPoints;
+		let cp0= controlPoints[0];
+		for (let i=1; i<controlPoints.length; i++) {
+			let cp1= controlPoints[i];
+			let c= calcCurve(cp0.position,cp1.position,
+			  cp0.direction,cp1.direction);
+			console.log(" calc "+i+(c.bad?" failed":" ")+
+			  " len1 "+c.len1.toFixed(3)+
+			  " radius "+c.radius.toFixed(3)+
+			  " angle "+c.angle.toFixed(6)+" "+
+			  (c.angle*180/Math.PI).toFixed(1)+
+			  " len2 "+c.len2.toFixed(3));
+			cp0= cp1;
+		}
+		cp0= controlPoints[0];
+		let cp1= controlPoints[controlPoints.length-1];
+		let c= calcCurve(cp0.position,cp1.position,
+		  cp0.direction,cp1.direction);
+		console.log(" calc"+(c.bad?" failed":" ")+
+		  " len1 "+c.len1.toFixed(3)+
+		  " radius "+c.radius.toFixed(3)+
+		  " angle "+c.angle.toFixed(6)+" "+
+		  (c.angle*180/Math.PI).toFixed(1)+
+		  " len2 "+c.len2.toFixed(3));
+		printEndNode(node2);
 	}
 	for (let i=0; trackDB && i<trackDB.nodes.length; i++) {
 		let node= trackDB.nodes[i];
@@ -212,12 +270,24 @@ let convertTrackDB= function()
 		let pin2= getPin(node2,i);
 		let n1= getPoints(node1,pin1);
 		let n2= getPoints(node2,pin2);
+		let bad= false;
 		for (let j=0; j<node.sections.length; j++) {
 			let section= node.sections[j];
-			let straight= trackDB.tSection.sections[
-			  section.sectionID].length>0;
 			let cp= { position: new THREE.Vector3(section.u,
 			  section.v,section.y) };
+			let straight= false;
+			if (!trackDB.tSection.sections[section.sectionID]) {
+				console.log("bad section "+section.sectionID+
+				  " in node "+i+" "+j);
+				centerU= section.u;
+				centerV= section.v;
+				selected= cp;
+				selectedTrack= track;
+				bad= true;
+			} else {
+				straight= trackDB.tSection.sections[
+				  section.sectionID].length>0;
+			}
 			let a= Math.PI/2-section.ay;
 			cp.direction= new THREE.Vector2(Math.cos(a),
 			  Math.sin(a)).normalize();
@@ -236,6 +306,8 @@ let convertTrackDB= function()
 			  Math.sin(a)).normalize();
 			track.controlPoints.push(cp);
 		}
+		if (bad)
+			printSections(node,track,node1,node2);
 		if (node1.sw) {
 			let cp= track.controlPoints[0];
 			cp.sw= node1.sw;
@@ -1056,12 +1128,14 @@ let alignStraight= function()
 		renderCanvas();
 	} else if (selected.straight && i<controlPoints.length-2 &&
 	  controlPoints[i+1].straight) {
-		moveToLine(selected,controlPoints[i+1],controlPoints[i+2]);
+		let fp2= farStraightPoint(controlPoints[i+2],1,selectedTrack);
+		moveToLine(selected,controlPoints[i+1],fp2);
 		calcTrack();
 		renderCanvas();
 	} else if (i>1 && controlPoints[i-2].straight &&
 	  controlPoints[i-1].straight) {
-		moveToLine(selected,controlPoints[i-2],controlPoints[i-1]);
+		let fp1= farStraightPoint(controlPoints[i-2],-1,selectedTrack);
+		moveToLine(selected,fp1,controlPoints[i-1]);
 		calcTrack();
 		renderCanvas();
 	}
@@ -1128,18 +1202,18 @@ let alignSwitch= function()
 		return controlPoints[n-2].straight;
 	}
 	// returns the control point adjacent to a switch end point
-	let farPoint= function(index) {
+	let farPoint= function(index,near) {
 		let cp= sw.points[index];
 		let track= findTrack(cp);
 		let controlPoints= track.controlPoints;
 		let n= controlPoints.length;
 		console.log("far "+index+" "+(cp==controlPoints[0])+" "+n);
 		if (cp == controlPoints[0])
-			return farStraightPoint(controlPoints[1],1,track);
-//			return controlPoints[1];
+			return near ? controlPoints[1] :
+			  farStraightPoint(controlPoints[1],1,track);
 		else
-			return farStraightPoint(controlPoints[n-2],-1,track);
-//			return controlPoints[n-2];
+			return near ? controlPoints[n-2] :
+			  farStraightPoint(controlPoints[n-2],-1,track);
 	}
 	let alignTwoStraights= function(index) {
 		let cp= sw.points[index];
@@ -1216,10 +1290,10 @@ let alignSwitch= function()
 	  isStraight(2));
 	if (isStraight(0)) {
 		console.log("straight 0");
-		let fp0= farPoint(0);
+		let fp0= farPoint(0,false);
 		for (let i=0; i<2; i++) {
 			if (sw.angles[i]!=0 && isStraight(i+1)) {
-				let fpr= farPoint(i+1);
+				let fpr= farPoint(i+1,false);
 				if (fp0.forcedDirection ||
 				  fpr.forcedDirection) {
 					moveToInt(fp0,fpr,sw.angles[i],
@@ -1234,19 +1308,22 @@ let alignSwitch= function()
 		} else {
 			for (let i=0; i<2; i++) {
 				if (sw.angles[i]==0 && isStraight(i+1)) {
-					let fpn= farPoint(i+1);
+					let fpn= farPoint(i+1,false);
 					moveToLine(sw.points[0],fp0,fpn);
 					return 1;
 				}
 			}
 		}
 		console.log("fp0 "+fp0.position.x+" "+fp0.position.y);
-		moveToLine(sw.points[0],fp0,sw.points[0]);
+		let fp1= farPoint(0,true);
+		if (fp0 == fp1)
+			fp1= sw.points[0];
+		moveToLine(sw.points[0],fp0,fp1);
 		return 1;
 	} else if (isStraight(1) && isStraight(2)) {
 		console.log("straight 12");
-		let fp1= farPoint(1);
-		let fp2= farPoint(2);
+		let fp1= farPoint(1,false);
+		let fp2= farPoint(2,false);
 		if (fp1.forcedDirection && sw.angles[0]==0) {
 			moveToInt(fp1,fp2,sw.angles[1],sw.offsets[1],
 			  Math.PI);
@@ -1268,15 +1345,21 @@ let alignSwitch= function()
 		console.log("straight 1");
 		if (alignTwoStraights(1))
 			return 1;
-		let fp1= farPoint(1);
-		moveToLine(sw.points[1],sw.points[1],fp1);
+		let fp1= farPoint(1,true);
+		let fp2= farPoint(1,false);
+		if (fp1 == fp2)
+			fp1= sw.points[1];
+		moveToLine(sw.points[1],fp1,fp2);
 		return 1;
 	} else if (isStraight(2)) {
 		console.log("straight 2");
 		if (alignTwoStraights(2))
 			return 1;
-		let fp2= farPoint(2);
-		moveToLine(sw.points[2],sw.points[2],fp2);
+		let fp1= farPoint(2,true);
+		let fp2= farPoint(2,false);
+		if (fp1 == fp2)
+			fp1= sw.points[2];
+		moveToLine(sw.points[2],fp1,fp2);
 		return 1;
 	}
 	return 0;
@@ -3029,6 +3112,10 @@ let changeTrackName= function()
 let calcSwitchOffsets= function(sw)
 {
 	let shape= trackDB.tSection.shapes[sw.shapeID];
+	if (!shape) {
+		console.log("unknown switch shape "+sw.shapeID);
+		return;
+	}
 	sw.pathOffsets= [];
 	for (let i=0; i<2; i++) {
 		let x= 0;

@@ -243,6 +243,13 @@ let setupMenu= function() {
 		}
 	}));
 	mapMenu.append(new nw.MenuItem({
+		label: 'USGS Imagery/Hydro',
+		click: function() {
+			mapType= "imageryhydro";
+			backgroundTiles=[]; renderCanvas();
+		}
+	}));
+	mapMenu.append(new nw.MenuItem({
 		label: 'Save Water',
 		click: saveWater
 	}));

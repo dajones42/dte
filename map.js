@@ -650,6 +650,7 @@ let updateBackgroundTiles= function()
 	}
 	let zoom= mapType=="imagery" ? 16 : mapType=="topo" ? 16 :
 	  mapType=="imagerytopo" ? 16 : mapType=="hydro" ? 16 : 
+	  mapType=="imageryhydro" ? 16 :
 	  mapType=="osgehydro" ? 16 : 17;
 	let makeBackgroundTile= function(tx,ty) {
 		for (let i=0; i<backgroundTiles.length; i++) {
@@ -657,7 +658,7 @@ let updateBackgroundTiles= function()
 			if (bgt.tx==tx && bgt.ty==ty)
 				return;
 		}
-		let url= mapType=="imagery" ?
+		let url= mapType=="imagery" || mapType=="imageryhydro" ?
 		  "https://basemap.nationalmap.gov/ArcGIS/rest/"+
 		    "services/USGSImageryOnly/MapServer/tile/"+
 		    zoom+"/"+ty+"/"+tx :
@@ -674,6 +675,9 @@ let updateBackgroundTiles= function()
 		    "services/USGSHydroCached/MapServer/tile/"+
 		    zoom+"/"+ty+"/"+tx :
 		  "http://A.tile.openstreetmap.org/"+zoom+"/"+tx+"/"+ty+".png";
+		let url2= "https://basemap.nationalmap.gov/arcgis/rest/"+
+		    "services/USGSHydroCached/MapServer/tile/"+
+		    zoom+"/"+ty+"/"+tx;
 		let uv00= tile2uv(tx,ty);
 		let uv01= tile2uv(tx,ty+1);
 		let uv10= tile2uv(tx+1,ty);
@@ -708,6 +712,27 @@ let updateBackgroundTiles= function()
 		loader.load(url,
 		  function(image) { bgt.image= image; renderMap(); },
 		  null,function(){ console.err("cant load "+url) });
+		if (mapType == "imageryhydro") {
+			bgt= {
+				tx: tx, ty: ty, u: u, v: v, zoom: zoom,
+				wid: wid, hgt: hgt, skew: skew, skewv: skewv
+			};
+			backgroundTiles.push(bgt);
+			bgt.zoom= 20;
+			let path= routeDir+fspath.sep+'TERRTEX'+fspath.sep+
+			  "hydro"+bgt.tx+"-"+bgt.ty+".png";
+			if (fs.existsSync(path)) {
+				bgt.image= new Image();
+				bgt.hydroImage= bgt.image;
+				let url= "file://"+path;
+				bgt.image.src= url;
+			} else {
+				loader= new THREE.ImageLoader();
+				loader.load(url2,function(image) {
+				  bgt.image= image; renderMap(); }, null,
+				  function(){ console.err("cant load "+url) });
+			}
+		}
 	}
 	let ll= uv2ll(centerU,centerV);
 	let tx= long2tile(ll.lng,zoom);
@@ -719,6 +744,8 @@ let updateBackgroundTiles= function()
 	}
 	if (mapType == "osgehydro")
 		updateOsgeTiles();
+	if (mapType == "imageryhydro")
+		backgroundTiles.sort(function(a,b){return a.zoom-b.zoom});
 }
 
 //	fetch background images for map display

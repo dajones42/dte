@@ -485,7 +485,12 @@ def makeSwitchPartLines(shape):
         y= frogPointRH["dist2"]
         line= copyCenterLine(cl2,x,y,1000,None)
         partLines.append({"part":"leftrail","centerLine":line,"ends":1})
-    copyPerp(cl2,cl1)
+    if "copyties" in shape["paths"][0]:
+        cl1= copyCenterLine(cl1,None,-1000,1000,None)
+        copyPerp(cl1,cl2)
+    if "copyties" in shape["paths"][1]:
+        cl2= copyCenterLine(cl2,None,-1000,1000,None)
+        copyPerp(cl2,cl1)
     if derail != "left":
         partLines.append({"part":"ballast","centerLine":cl1,"ends":0})
         partLines.append({"part":"ties","centerLine":cl1,"ends":0})
@@ -604,7 +609,6 @@ def makeCrossingPartLines(shape):
         addCrossingGuardRail(partLines,"rightguardrail",cl1,cl2,1,shape,9,9,6)
         addCrossingGuardRail(partLines,"leftguardrail",cl2,cl1,-1,shape,9,9,3)
         addCrossingGuardRail(partLines,"rightguardrail",cl2,cl1,1,shape,3,6,6)
-        copyPerp(cl2,cl1)
         partLines.append({"part":"ballast","centerLine":cl1,"ends":0})
         partLines.append({"part":"ties","centerLine":cl1,"ends":0})
         partLines.append({"part":"ballast","centerLine":cl2,"ends":0})

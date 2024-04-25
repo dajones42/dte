@@ -262,6 +262,8 @@ def makeMesh(lod,shape,part,centerLine,ends,anim):
         point0= centerLine[0]["point"]
         dist= 0
         for i in range(len(centerLine)):
+            if part and part=="end" and i>0 and i<len(centerLine)-1:
+                continue
             point= centerLine[i]["point"]
             perp= centerLine[i]["perp"]
             dist= dist+(point-point0).length
@@ -283,10 +285,20 @@ def makeMesh(lod,shape,part,centerLine,ends,anim):
                 coords.append(p)
                 uv= [texc[0]+dist*dtc[0],1-(texc[1]+dist*dtc[1])]
                 uvs.append(uv)
-                if i>0 and j>0:
-                    vij= vi+j-1
-                    face= (vij-nverts,vij-nverts+1,vij+1,vij)
-                    faces.append(face)
+            if part and part=="end":
+                face= []
+                for j in range(len(verts)):
+                    if i>0:
+                        face.append(vi+nverts-1-j)
+                    else:
+                        face.append(vi+j)
+                faces.append(face)
+            else:
+                for j in range(len(verts)):
+                    if i>0 and j>0:
+                        vij= vi+j-1
+                        face= (vij-nverts,vij-nverts+1,vij+1,vij)
+                        faces.append(face)
             point0= point
             vi= vi+nverts
     if not coords:
@@ -642,6 +654,9 @@ def makeTrack(shape,profile,collection):
             getCenterLine(tunnel["path"])
         else:
             tunnel["path"]= paths[0]
+    ends= False
+    if "ends" in shape:
+        ends= shape["ends"]
     paths.sort(key=functools.cmp_to_key(pathCenterLineCmp))
 #    for path in paths:
 #        printCenterLine(path["centerLine"])
@@ -668,6 +683,8 @@ def makeTrack(shape,profile,collection):
                 makeMesh(lod,shape,"leftrail",cl,0,None)
                 makeMesh(lod,shape,"ballast",cl,0,None)
                 makeMesh(lod,shape,"ties",cl,0,None)
+                if ends:
+                    makeMesh(lod,shape,"end",cl,0,None)
             if tunnel:
                 path= tunnel["path"]
                 cl= path["centerLine"]

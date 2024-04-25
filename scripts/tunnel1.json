@@ -11,5 +11,6 @@
  ],
  "tunnel": {
   "part": "tunnel1"
- }
+ },
+ "ends": true
 }

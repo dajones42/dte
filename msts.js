@@ -686,7 +686,7 @@ let setTerrainElevation= function(i,j,tile,elev,both)
 	}
 	if (i<256 && j<256) {
 		let u= elev<=tile.floor ? 0 :
-		  elev>=tile.floor*65535*tile.scale ? 65535 :
+		  elev>=tile.floor+65535*tile.scale ? 65535 :
 		  (elev-tile.floor)/tile.scale;
 		tile.terrain.writeUInt16LE(u,(i*256+j)*2);
 		if (both)

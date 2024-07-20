@@ -266,6 +266,10 @@ let setupMenu= function() {
 		submenu: mapMenu
 	}));
 	nw.Window.get().menu= topMenu;
+}
+
+let setupFileDialogs= function()
+{
 	document.getElementById('fileopentdb').addEventListener('change',
 		function(e) {
 //			console.log('open '+this.value);

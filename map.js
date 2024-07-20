@@ -859,7 +859,7 @@ let setMapOverlay= function(index)
 	if (index >= maps.length)
 		return;
 	overlay= maps[index];
-	if (!overlay.image) {
+	if (overlay && !overlay.image) {
 		let image= new Image();
 		image.src= "file://"+overlay.file;
 		overlay.image= image;

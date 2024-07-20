@@ -29,6 +29,7 @@ const THREE= require('three');
 //	initiallizes menu, keyboard events and displays
 window.onload= function() {
 	setupMenu();
+	setupFileDialogs();
 	window.addEventListener('keydown',function(e) {
 		if (e.keyCode == 37) {
 			cameraLeft();
@@ -1246,6 +1247,7 @@ let alignSwitch= function()
 		let dp= new THREE.Vector2(
 		  sw.points[0].position.x-fp0.position.x,
 		  sw.points[0].position.y-fp0.position.y);
+		dp.normalize();
 		let d1= new THREE.Vector2(fp0.direction.x,fp0.direction.y);
 		let d2= new THREE.Vector2(fp1.direction.x,fp1.direction.y);
 		let cs= Math.cos(angle);
@@ -1287,13 +1289,17 @@ let alignSwitch= function()
 //		console.log("pi "+pi.x+" "+pi.y+" "+offset+" "+sw.angle);
 	}
 	console.log("alignSw "+isStraight(0)+" "+isStraight(1)+" "+
-	  isStraight(2));
+	  isStraight(2)+" "+sw.points[0].position.x+" "+
+	  sw.points[0].position.y);
 	if (isStraight(0)) {
 		console.log("straight 0");
 		let fp0= farPoint(0,false);
 		for (let i=0; i<2; i++) {
 			if (sw.angles[i]!=0 && isStraight(i+1)) {
 				let fpr= farPoint(i+1,false);
+//				console.log("fp0r "+i+" "+
+//				  fp0.forcedDirection+" "+
+//				  fpr.forcedDirection);
 				if (fp0.forcedDirection ||
 				  fpr.forcedDirection) {
 					moveToInt(fp0,fpr,sw.angles[i],
@@ -1302,6 +1308,7 @@ let alignSwitch= function()
 				}
 			}
 		}
+//		console.log("fp0 "+fp0.forcedDirection+" "+!fp0.sw);
 		if (fp0.forcedDirection && !fp0.sw) {
 			moveToLine(sw.points[0],fp0);
 			return 1;
@@ -2686,7 +2693,12 @@ let readData= function(filename)
 			sw.switchStand= dSwitch.switchStand;
 		for (let j=0; j<dSwitch.points.length; j++) {
 			let sp= dSwitch.points[j];
-			let cp= tracks[sp.track].controlPoints[sp.point];
+			let track= tracks[sp.track];
+			if (sp.point>0 &&
+			  sp.point!=track.controlPoints.length-1)
+				console.log("badswp "+j+" "+sp.point+" "+
+				  (track.controlPoints.length-1));
+			let cp= track.controlPoints[sp.point];
 			sw.points.push(cp);
 			cp.sw= sw;
 			if (j > 0) {
@@ -2782,7 +2794,7 @@ let readMaps= function()
 	} catch (e) {
 		console.log("cannot read maps.json");
 		console.log(e);
-		maps= null;
+		maps= [];
 	}
 }
 
@@ -2909,7 +2921,7 @@ let farStraightPoint= function(start,di,track)
 	let otherSwStraight= function(cp) {
 		let sw= cp.sw;
 		for (let i=0; i<2; i++)
-			if (sw.points[i]==cp && sw.angles[i]!=0)
+			if (sw.points[i+1]==cp && sw.angles[i]!=0)
 				return cp;
 		for (let i=0; i<2; i++) {
 			if (sw.angles[i] != 0)

@@ -53,11 +53,11 @@ let lineSegNearest= function(x,y,x1,y1,x2,y2)
 //	debug.innerHTML= "<p>"+x1+" "+x2+" "+y1+" "+y2+" "+
 //	  dx+" "+dy+" "+d+" "+n+"</p>";
 	if (d==0 || n<=0)
-		return { x: x1, y: y1 };
+		return { x: x1, y: y1, a: 0 };
 	else if (n >= d)
-		return { x: x2, y: y2 };
+		return { x: x2, y: y2, a: 1 };
 	else
-		return { x: x1 + dx*n/d, y: y1 + dy*n/d };
+		return { x: x1 + dx*n/d, y: y1 + dy*n/d, a: n/d };
 }
 
 //	returns point on a line in 2D that is closet to another point
@@ -347,4 +347,35 @@ let polySimp= function(polygon,threshold)
 		out.push(p);
 	}
 	return out;
+}
+
+//	finds the intersection between a line segments p1-p2 and circle ctr,r.
+//	returns point closer to a if there are two solutions on the segment.
+let segCircInt= function(p1,p2,ctr,r)
+{
+//	console.log("segcirc "+p1.x+" "+p1.y+" "+p2.x+" "+p2.y);
+//	console.log(" "+ctr.x+" "+ctr.y+" "+r);
+	let x1= p1.x-ctr.x;
+	let y1= p1.y-ctr.y;
+	let dx= p2.x-p1.x;
+	let dy= p2.y-p1.y;
+//	console.log(" "+x1+" "+y1+" "+dx+" "+dy+" "+Math.sqrt(x1*x1+y1*y1));
+	let a= dx*dx + dy*dy;
+	if (a == 0)
+		return null;
+	let b= 2*(x1*dx+y1*dy);
+	let c= x1*x1 + y1*y1 - r*r;
+//	console.log(" "+a+" "+b+" "+c);
+	if (b*b < 4*a*c)
+		return null;
+	let d= Math.sqrt(b*b-4*a*c);
+	let q= -.5*(b+(b>0?d:-d));
+	let s= q/a;
+	let t= c/q;
+//	console.log(" "+s+" "+t+" "+d+" "+q);
+	if (s>=0 && s<=1 && (t<0 || t>1 || s<t))
+		return { x: ctr.x+x1+s*dx, y: ctr.y+y1+s*dy, a: s };
+	if (t>=0 && t<=1)
+		return { x: ctr.x+x1+t*dx, y: ctr.y+y1+t*dy, a: t };
+	return null;
 }

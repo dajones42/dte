@@ -279,8 +279,28 @@ let renderMap= function()
 //				  cp.trackPoint);
 		}
 		let straight= 0;
-		if (track.type == "contour") {
+		if (track.type=="contour" ||
+		  track.type=="wire") {
 			context.strokeStyle= "brown";
+			if (track.type=="wire")
+				context.strokeStyle= "magenta";
+			if (track.wirePoints) {
+				for (let i=0; i<track.wirePoints.length; i++) {
+					let wp= track.wirePoints[i];
+					let wo= wp.wireOptions;
+					let u= (wp.x-centerU)*scale + width/2;
+					let v= height/2 - (wp.y-centerV)*scale;
+					context.beginPath();
+					context.moveTo(u,v);
+					if (wo && wo.poleSide<0)
+						context.lineTo(u-10*wp.px,
+						  v+10*wp.py);
+					else
+						context.lineTo(u+10*wp.px,
+						  v-10*wp.py);
+					context.stroke();
+				}
+			}
 			context.beginPath();
 			for (let i=0; i<controlPoints.length; i++) {
 				let cp= controlPoints[i];
@@ -291,6 +311,7 @@ let renderMap= function()
 				else
 					context.lineTo(u,v);
 			}
+			context.stroke();
 		} else {
 			context.strokeStyle= "blue";
 			context.beginPath();
@@ -315,8 +336,8 @@ let renderMap= function()
 					straight= p.straight;
 				}
 			}
+			context.stroke();
 		}
-		context.stroke();
 		for (let i=0; i<controlPoints.length; i++) {
 			let cp= controlPoints[i];
 			let u= (cp.position.x-centerU)*scale + width/2;
@@ -902,7 +923,8 @@ let rotateMapOverlay= function(da)
 //	connected to straights or switches
 let constrainDrag= function()
 {
-	if (!dragging || selectedTrack.type=="contour")
+	if (!dragging || selectedTrack.type=="contour" ||
+	  selectedTrack.type=="wire")
 		return;
 	let controlPoints= selectedTrack.controlPoints;
 	let i= controlPoints.indexOf(dragging);

@@ -1856,6 +1856,7 @@ let testQDir= function()
 let saveToRoute= function()
 {
 	calcTrackPointElevations();
+	calcWire(true);
 	overrideSwitchShapes();
 	matchCrossingPoints();
 	let tsection= trackDB.tSection;
@@ -1918,7 +1919,8 @@ let saveToRoute= function()
 		if (track.type == "water" ||
 		  track.type == "road" || track.type == "road1" ||
 		  track.type == "dirtroad" || track.type == "dirtroad1" ||
-		  track.type=="contour" || track.type=="paint")
+		  track.type=="contour" || track.type=="paint" ||
+		  track.type=="wire")
 			continue;
 		let dynTrackPoints= track.dynTrackPoints;
 		for (let j=0; j<dynTrackPoints.length-1; j++) {
@@ -2230,7 +2232,8 @@ let saveToRoute= function()
 		if (track.type == "water" ||
 		  track.type == "road" || track.type == "road1" ||
 		  track.type == "dirtroad" || track.type == "dirtroad1" ||
-		  track.type=="contour" || track.type=="paint")
+		  track.type=="contour" || track.type=="paint" ||
+		  track.type=="wire")
 			continue;
 		let dynTrackPoints= track.dynTrackPoints;
 		let controlPoints= track.controlPoints;
@@ -2288,7 +2291,7 @@ let saveToRoute= function()
 	for (let i=0; i<tracks.length; i++) {
 		let track= tracks[i];
 		if (track.type == "water" || track.type=="contour" ||
-		  track.type=="paint")
+		  track.type=="paint" || track.type=="wire")
 			continue;
 		let controlPoints= track.controlPoints;
 		let j1= 0;
@@ -2350,6 +2353,28 @@ let saveToRoute= function()
 					tile.models.push(static);
 				}
 			}
+		}
+	}
+	for (let i=0; i<tracks.length; i++) {
+		let track= tracks[i];
+		if (track.type!="wire" || !track.wirePoints)
+			continue;
+		let wirePoints= track.wirePoints;
+		for (let j=0; j<wirePoints.length; j++) {
+			let wp= wirePoints[j];
+			let wo= wp.wireOptions;
+			console.log("pole "+wo.poleModel+" "+wo.poleSide);
+			if (!wp.noPole && wo.poleSide)
+				addModel(wo.poleModel,wp.x,wp.y,wp.z,
+				  wo.poleSide*wp.dx,wo.poleSide*wp.dy,0);
+			wo= wp.wireOptions2;
+			console.log("wire "+wo.wireModel+" "+wo.length);
+			let halfLen= .5*wo.length;
+			if (j < wirePoints.length-1)
+				addModel(wo.wireModel,
+				  wp.x+halfLen*wp.dx,wp.y+halfLen*wp.dy,
+				  wp.z+halfLen*wp.dz+7.2,
+				  wp.dx,wp.dy,wp.dz);
 		}
 	}
 	for (let i=0; i<tracks.length; i++) {
@@ -2786,7 +2811,7 @@ let savePatchImage= function(tile,tpm,mtdata)
 	for (let i=0; i<tracks.length; i++) {
 		let track= tracks[i];
 		if (track.type == "water" || track.type=="contour" ||
-		  track.type=="paint")
+		  track.type=="paint" || track.type=="wire")
 			continue;
 		setProfile(track.type);
 		let controlPoints= track.controlPoints;
@@ -3227,7 +3252,7 @@ let countPatchTrackPoints= function(tile,i0,j0)
 	for (let i=0; i<tracks.length; i++) {
 		let track= tracks[i];
 		if (track.type == "water" || track.type=="contour" ||
-		  track.type=="paint")
+		  track.type=="paint" || track.type=="wire")
 			continue;
 		track.nearPatch= false;
 		let m= 0;
@@ -3601,7 +3626,7 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 	for (let i=0; i<tracks.length; i++) {
 		let track= tracks[i];
 		if (track.type == "water" || track.type=="contour" ||
-		  track.type=="paint")
+		  track.type=="paint" || track.type=="wire")
 			continue;
 		setProfile(track.type);
 		if (!overpass)
@@ -4314,6 +4339,8 @@ let overrideSwitchShapes= function()
 }
 
 let addModel= function(filename,x,y,z,dx,dy,grade) {
+	if (!filename)
+		return;
 //	console.log(" addmodel "+filename+" "+x+" "+y+" "+z+" "+
 //	  dx+" "+dy+" "+grade);
 	let static= { filename: filename };

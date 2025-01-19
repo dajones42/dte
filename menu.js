@@ -186,6 +186,10 @@ let setupMenu= function() {
 		label: 'Attach Forest',
 		click: attachForest
 	}));
+	editMenu.append(new nw.MenuItem({
+		label: 'Attach Wire Options',
+		click: attachWireOptions
+	}));
 	topMenu.append(new nw.MenuItem({
 		label: 'Edit',
 		submenu: editMenu

@@ -381,6 +381,7 @@ let calcTrack= function()
 	calcSwitchGrades();
 	for (let i=0; i<tracks.length; i++)
 		calcDynTrack(tracks[i]);
+	calcWire(false);
 }
 
 //	Calculates curves for a single track in horizontal plane.
@@ -1124,13 +1125,18 @@ let alignStraight= function()
 		let fp1= farStraightPoint(controlPoints[i-1],-1,selectedTrack);
 		let fp2= farStraightPoint(controlPoints[i+1],1,selectedTrack);
 		moveToLine(selected,fp1,fp2);
+		for (let j=0; selectedGroup && j<selectedGroup.length; j++)
+			moveToLine(selectedGroup[j],fp1,fp2);
 //		moveToLine(selected,controlPoints[i-1],controlPoints[i+1]);
 		calcTrack();
 		renderCanvas();
 	} else if (selected.straight && i<controlPoints.length-2 &&
 	  controlPoints[i+1].straight) {
+		let fp1= controlPoints[i+1];
 		let fp2= farStraightPoint(controlPoints[i+2],1,selectedTrack);
-		moveToLine(selected,controlPoints[i+1],fp2);
+		moveToLine(selected,fp1,fp2);
+		for (let j=0; selectedGroup && j<selectedGroup.length; j++)
+			moveToLine(selectedGroup[j],fp1,fp2);
 		calcTrack();
 		renderCanvas();
 	} else if (i>1 && controlPoints[i-2].straight &&
@@ -2559,6 +2565,8 @@ let saveData= function(filename)
 				p.model= cp.model;
 			if (cp.forest)
 				p.forest= cp.forest;
+			if (cp.wireOptions)
+				p.wireOptions= cp.wireOptions;
 			if (cp.name)
 				p.name= cp.name;
 			if (cp.dzdw)
@@ -2670,6 +2678,8 @@ let readData= function(filename)
 				p.model= dp.model;
 			if (dp.forest)
 				p.forest= dp.forest;
+			if (dp.wireOptions)
+				p.wireOptions= dp.wireOptions;
 			if (dp.name)
 				p.name= dp.name;
 			if (dp.dzdw)
@@ -3760,4 +3770,258 @@ let matchCrossingPoints= function()
 			}
 		}
 	}
+}
+
+let findTrackPoint= function(cp,calcZ)
+{
+	let x= cp.position.x;
+	let y= cp.position.y;
+	let bestd= 1e6;
+	let bestp= null;
+	for (let i=0; i<tracks.length; i++) {
+		let track= tracks[i];
+		if (cp.track == track)
+			continue;
+		if (track.type=="wire" || track.type=="water" ||
+		  track.type=="contour" || track.type=="paint")
+			continue;
+		let trackPoints= track.trackPoints;
+		let p0= trackPoints[0];
+		for (let j=1; j<trackPoints.length; j++) {
+			let p1= trackPoints[j];
+			let d= lineSegDistSq(x,y,p0.x,p0.y,p1.x,p1.y);
+			if (d < bestd) {
+				bestd= d;
+				bestp= lineSegNearest(x,y,p0.x,p0.y,p1.x,p1.y);
+				bestp.track= track;
+				bestp.tpIndex= j;
+				if (calcZ)
+					bestp.z= (1-bestp.a)*p0.z +
+					  bestp.a*p1.z;
+			}
+			p0= p1;
+		}
+	}
+	return bestp;
+}
+
+let addTrackPoints= function(p0,p1,points) {
+	if (p0.track==p1.track && p0.tpIndex<p1.tpIndex) {
+		for (let i=p0.tpIndex; i<=p1.tpIndex; i++) {
+			let tp= p0.track.trackPoints[i];
+			tp.wireOptions= p0.wireOptions;
+			points.push(tp);
+		}
+		return;
+	} else if (p0.track == p1.track) {
+		for (let i=p0.tpIndex; i>=p1.tpIndex; i--) {
+			let tp= p0.track.trackPoints[i];
+			tp.wireOptions= p0.wireOptions;
+			points.push(tp);
+		}
+		return;
+	}
+	let p00= p0.track.controlPoints[0];
+	let n0= p0.track.controlPoints.length-1;
+	let p0n= p0.track.controlPoints[n0];
+	let p10= p1.track.controlPoints[0];
+	let n1= p1.track.controlPoints.length-1;
+	let p1n= p1.track.controlPoints[n1];
+	if (p00.sw == p10.sw) {
+		for (let i=p0.tpIndex; i>=0; i--) {
+			let tp= p0.track.trackPoints[i];
+			tp.wireOptions= p0.wireOptions;
+			points.push(tp);
+		}
+		for (let i=0; i<=p1.tpIndex; i++) {
+			let tp= p1.track.trackPoints[i];
+			tp.wireOptions= p1.wireOptions;
+			points.push(tp);
+		}
+	} else if (p00.sw == p1n.sw) {
+		for (let i=p0.tpIndex; i>=0; i--) {
+			let tp= p0.track.trackPoints[i];
+			tp.wireOptions= p0.wireOptions;
+			points.push(tp);
+		}
+		let n= p1.track.trackPoints.length;
+		for (let i=n-1; i>=p1.tpIndex; i--) {
+			let tp= p1.track.trackPoints[i];
+			tp.wireOptions= p1.wireOptions;
+			points.push(tp);
+		}
+	} else if (p0n.sw == p10.sw) {
+		let n= p0.track.trackPoints.length;
+		for (let i=p0.tpIndex; i<n; i++) {
+			let tp= p0.track.trackPoints[i];
+			tp.wireOptions= p0.wireOptions;
+			points.push(tp);
+		}
+		for (let i=0; i<=p1.tpIndex; i++) {
+			let tp= p1.track.trackPoints[i];
+			tp.wireOptions= p1.wireOptions;
+			points.push(tp);
+		}
+	} else if (p0n.sw == p1n.sw) {
+		let n= p0.track.trackPoints.length;
+		for (let i=p0.tpIndex; i<n; i++) {
+			let tp= p0.track.trackPoints[i];
+			tp.wireOptions= p0.wireOptions;
+			points.push(tp);
+		}
+		n= p1.track.trackPoints.length;
+		for (let i=n-1; i>=p1.tpIndex; i--) {
+			let tp= p1.track.trackPoints[i];
+			tp.wireOptions= p1.wireOptions;
+			points.push(tp);
+		}
+	} else {
+		console.log("wire tracks not adjacent");
+	}
+}
+
+let findWirePoint= function(cp,wireTracks)
+{
+	let bestd= 2;
+	let bestp= null;
+	for (let i=0; i<wireTracks.length; i++) {
+		let track= wireTracks[i];
+		let wirePoints= track.wirePoints;
+		for (let j=0; j<wirePoints.length; j++) {
+			let wp= wirePoints[j];
+			let d= distance(cp.position,wp);
+			if (d < bestd) {
+				bestd= d;
+				bestp= wp;
+			}
+		}
+	}
+	console.log("findwp "+bestd+" "+bestp+" "+wireTracks.length);
+	return bestp;
+}
+
+let calcWire= function(calcZ)
+{
+	let wireTracks= [];
+	for (let i=0; i<tracks.length; i++) {
+		let track= tracks[i];
+		if (track.type != "wire")
+			continue;
+		let points= [];
+		let controlPoints= track.controlPoints;
+		for (let j=0; j<controlPoints.length; j++) {
+			let cp= controlPoints[j];
+			let p= findTrackPoint(cp,calcZ);
+			if (cp.wireOptions)
+				p.wireOptions= cp.wireOptions;
+			points.push(p);
+			if (j==0 || j==controlPoints.length-1) {
+				let wp= findWirePoint(cp,wireTracks);
+				if (wp) {
+					p.x= wp.x;
+					p.y= wp.y;
+					p.noPole= true;
+					if (calcZ)
+						p.z= wp.z;
+				}
+			}
+			console.log("wirecp "+j+" "+
+			  cp.position.x+" "+cp.position.y+" noPole "+p.noPole);
+		}
+		let p0= points[0];
+		if (!p0.wireOptions)
+			p0.wireOptions= { length: .3048*150 };
+		let tPoints= [];
+		for (let j=1; j<points.length; j++) {
+			let p1= points[j];
+			if (!p1.wireOptions)
+				p1.wireOptions= p0.wireOptions;
+			addTrackPoints(p0,p1,tPoints);
+			p0= p1;
+		}
+		let prev= points[0];
+		let options= prev.wireOptions;
+		prev.wireOptions2= options;
+		let wirePoints= [prev];
+//		console.log("wp0 "+prev.x+" "+prev.y);
+		p0= tPoints[0];
+		let len= options.length;
+		for (let j=1; j<tPoints.length; j++) {
+			let p1= tPoints[j];
+			let wp= segCircInt(p0,p1,prev,len);
+			if (wp) {
+//				console.log(" wp "+wp.x+" "+wp.y+" "+wp.a);
+				wirePoints.push(wp);
+				if (calcZ)
+					wp.z= (1-wp.a)*p0.z + wp.a*p1.z;
+				wp.wireOptions= options;
+				prev= wp;
+				options= p1.wireOptions;
+				prev.wireOptions2= options;
+				len= options.length;
+				let d= distance(p0,p1);
+				for (let d1=wp.a*d+len; d1<=d; d1+=len) {
+					let a= d1/d;
+					let b= 1-a;
+					let p= { x: a*p1.x + b*p0.x,
+						y: a*p1.y + b*p0.y };
+					if (calcZ)
+						p.z= a*p1.z + b*p0.z;
+					p.wireOptions= options;
+					p.wireOptions2= options;
+					wirePoints.push(p);
+					prev= p;
+//					console.log(" wp "+p.x+" "+p.y+" "+a);
+				}
+			}
+			p0= p1;
+		}
+		track.wirePoints= wirePoints;
+		wireTracks.push(track);
+		console.log("wire "+i+" "+points.length+" "+tPoints.length+" "+
+		  wirePoints.length);
+		p0= wirePoints[0];
+		for (let j=1; j<wirePoints.length; j++) {
+			let p1= wirePoints[j];
+			let dx= p1.x-p0.x;
+			let dy= p1.y-p0.y;
+			len= Math.sqrt(dx*dx + dy*dy);
+			p0.dx= dx/len;
+			p0.dy= dy/len;
+			if (calcZ)
+				p0.dz= (p1.z-p0.z)/len;
+			p1.px= -dy/len;
+			p1.py= dx/len;
+			if (j == 1) {
+				p0.px= p1.px;
+				p0.py= p1.py;
+			} else {
+				p0.px+= p1.px;
+				p0.py+= p1.py;
+				p0.px/= 2;
+				p0.py/= 2;
+			}
+//			console.log(" wpp "+p0.px+" "+p0.py);
+			p0= p1;
+		}
+	}
+}
+
+//	Implements the Edit menu Attach Wire Options feature
+let attachWireOptions= function()
+{
+	if (!selected || selectedTrack.type!="wire")
+		return;
+	var length= document.getElementById("wirelength").value;
+	var wireModel= document.getElementById("wiremodel").value;
+	var poleModel= document.getElementById("polemodel").value;
+	var poleSide= document.getElementById("poleside").value;
+	selected.wireOptions= {
+		length: .3048*parseFloat(length),
+		wireModel: wireModel,
+		poleModel: poleModel,
+		poleSide: parseInt(poleSide)
+	};
+	calcWire(false);
+	renderCanvas();
 }

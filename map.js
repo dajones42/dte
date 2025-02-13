@@ -181,6 +181,29 @@ let renderMap= function()
 		}
 		context.stroke();
 	}
+	if (selected && selectedTrack.type=="forest") {
+		let forestData= calcPolyForest(selectedTrack,false);
+		for (let i=0; forestData && i<forestData.trees.length; i++) {
+			let trees= forestData.trees[i].trees;
+			if (trees.length > 500)
+				context.strokeStyle= "red";
+			else
+				context.strokeStyle= "green";
+			let treeData= forestData.trees[i].treeData;
+			for (let j=0; j<trees.length; j++) {
+				let tree= trees[j];
+				let u= (tree.x-centerU)*scale + width/2;
+				let v= height/2 - (tree.y-centerV)*scale;
+				let sz= tree.size*treeData.sizew/2*scale;
+				context.beginPath();
+				context.moveTo(u-sz,v);
+				context.lineTo(u+sz,v);
+				context.moveTo(u,v-sz);
+				context.lineTo(u,v+sz);
+				context.stroke();
+			}
+		}
+	}
 	context.strokeWidth= 1;
 	context.strokeStyle= "red";
 	context.beginPath();
@@ -280,10 +303,12 @@ let renderMap= function()
 		}
 		let straight= 0;
 		if (track.type=="contour" ||
-		  track.type=="wire") {
+		  track.type=="wire" || track.type=="forest") {
 			context.strokeStyle= "brown";
 			if (track.type=="wire")
 				context.strokeStyle= "magenta";
+			else if (track.type=="forest")
+				context.strokeStyle= "green";
 			if (track.wirePoints) {
 				for (let i=0; i<track.wirePoints.length; i++) {
 					let wp= track.wirePoints[i];
@@ -358,8 +383,8 @@ let renderMap= function()
 				context.fillStyle= "yellow";
 				context.fillRect(u-2,v-2,4,4);
 			}
-			if (cp.direction && (cp.forest || 
-			  (cp.model && cp.model.size))) {
+			if (track.type!="forest" && cp.direction &&
+			  (cp.forest || (cp.model && cp.model.size))) {
 				let dx= cp.direction.x;
 				let dy= -cp.direction.y;
 				let w= cp.forest ?
@@ -924,7 +949,7 @@ let rotateMapOverlay= function(da)
 let constrainDrag= function()
 {
 	if (!dragging || selectedTrack.type=="contour" ||
-	  selectedTrack.type=="wire")
+	  selectedTrack.type=="wire" || selectedTrack.type=="forest")
 		return;
 	let controlPoints= selectedTrack.controlPoints;
 	let i= controlPoints.indexOf(dragging);

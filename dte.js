@@ -974,8 +974,10 @@ let calcDirection= function(track)
 //	Creates a new track if nothing is selected.
 let addControlPoint= function(x,y)
 {
-	if (!selected)
+	if (!selected) {
 		selectedTrack= addTrack();
+		selectedTrack.type= document.getElementById("tracktype").value;
+	}
 	let controlPoints= selectedTrack.controlPoints;
 	let z= getElevation(x,y,true);
 	if (z <= 0)
@@ -1000,7 +1002,7 @@ let addControlPoint= function(x,y)
 			controlPoints.splice(i+1,0,cp);
 		} else if (selected.sw) {
 			controlPoints.splice(i,0,cp);
-		} else if (!selected.direction) {
+		} else if (!selected.direction || i==controlPoints.length-1) {
 			controlPoints.push(cp);
 		} else {
 			let dp= cp.position.clone().sub(selected.position);
@@ -1607,8 +1609,25 @@ let makeGroundPoints= function(track,orig)
 //	information in two tables.
 let printTrack= function(curves,rpCurves)
 {
-	let s= "<br>Track Type: "+selectedTrack.type+
-	  "<br>Flat Track "+
+	let s= "<br>Track Type: "+selectedTrack.type;
+	let cp0= selectedTrack.controlPoints[0];
+	if (cp0.model)
+		s+= "<br>Model: "+cp0.model.filename;
+	if (cp0.forest) {
+		let printTreeType= function(data) {
+			s+= "<br>Tree Texture: "+data.texture+
+			  " Density: "+data.density.toFixed(2);
+		}
+		if (selectedTrack.type=="forest") {
+			for (let i=0; i<cp0.forest.length; i++)
+				printTreeType(cp0.forest[i]);
+		} else {
+			printTreeType(cp0.forest);
+			if (cp0.forest.type2)
+				printTreeType(cp0.forest.type2);
+		}
+	}
+	s+= "<br>Flat Track "+
 	  "<table><tr><th>N</th><th>Straight</th><th>Angle</th>"+
 	  "<th>Radius</th><th>Degrees</th><th>Straight</th>"+
 //	  "<th>Speed</th><th>Spiral Angle</th><th>Spiral Length</th>"+
@@ -2676,8 +2695,13 @@ let readData= function(filename)
 				p.endNode= trackDB.nodes[dp.endNode];
 			if (dp.model)
 				p.model= dp.model;
-			if (dp.forest)
-				p.forest= dp.forest;
+			if (dp.forest) {
+				if (track.type=="forest" && dp.forest.type2)
+					p.forest=
+					  [ dp.forest, dp.forest.type2 ];
+				else
+					p.forest= dp.forest;
+			}
 			if (dp.wireOptions)
 				p.wireOptions= dp.wireOptions;
 			if (dp.name)
@@ -3294,28 +3318,24 @@ let attachForest= function()
 {
 	if (!selected)
 		return;
+	let cp= selectedTrack.controlPoints[0];
 	var treeType= document.getElementById("treetype").value;
 	var density= document.getElementById("density").value;
 	var treeType2= document.getElementById("treetype2").value;
 	var density2= document.getElementById("density2").value;
 	var tdata= treeData[treeType];
-	if (!selected.forest) {
-		selected.forest= {
-			areaw: 400,
-			areah: 400,
-			sizew: tdata.sizew
-		};
-		alignForest(selected);
-	}
-	selected.forest.density= parseFloat(density);
-	selected.forest.texture= tdata.texture;
-	selected.forest.scale0= tdata.scale0;
-	selected.forest.scale1= tdata.scale1;
-	selected.forest.sizew= tdata.sizew;
-	selected.forest.sizeh= tdata.sizeh;
+	let type1= {
+		density: parseFloat(density),
+		texture: tdata.texture,
+		scale0: tdata.scale0,
+		scale1: tdata.scale1,
+		sizew: tdata.sizew,
+		sizeh: tdata.sizeh
+	};
+	let type2= null;
 	if (treeType2 != treeType) {
 		var tdata= treeData[treeType2];
-		selected.forest.type2= {
+		type2= {
 			density: parseFloat(density2),
 			texture: tdata.texture,
 			scale0: tdata.scale0,
@@ -3323,8 +3343,31 @@ let attachForest= function()
 			sizew: tdata.sizew,
 			sizeh: tdata.sizeh
 		};
+	}
+	if (selectedTrack.type == "forest") {
+		if (!cp.forest)
+			cp.forest= [];
+		let saveData= function(data) {
+			for (let i=0; i<cp.forest.length; i++) {
+				if (cp.forest[i].texture == data.texture) {
+					cp.forest[i]= data;
+					return;
+				}
+			}
+			cp.forest.push(data);
+		}
+		saveData(type1);
+		if (type2)
+			saveData(type2);
 	} else {
-		selected.forest.type2= null;
+		if (!cp.forest) {
+			forest.areaw= 400;
+			forest.areah= 400;
+			alignForest(cp);
+		}
+		cp.forest= type1;
+		if (type2)
+			cp.forest.type2= type2;
 	}
 	renderCanvas();
 }
@@ -3783,7 +3826,8 @@ let findTrackPoint= function(cp,calcZ)
 		if (cp.track == track)
 			continue;
 		if (track.type=="wire" || track.type=="water" ||
-		  track.type=="contour" || track.type=="paint")
+		  track.type=="contour" || track.type=="paint" ||
+		  track.type=="forest")
 			continue;
 		let trackPoints= track.trackPoints;
 		let p0= trackPoints[0];
@@ -4024,4 +4068,68 @@ let attachWireOptions= function()
 	};
 	calcWire(false);
 	renderCanvas();
+}
+
+let calcPolyForest= function(track,calcZ)
+{
+	if (track.type != "forest")
+		return null;
+	let controlPoints= track.controlPoints;
+	let n= controlPoints.length;
+	if (n<3 || !controlPoints[0].forest)
+		return null;
+	let polygon= [];
+	let center= new THREE.Vector3();
+	let box= new THREE.Box3();
+	for (let j=0; j<n; j++) {
+		let p= controlPoints[j].position;
+		polygon.push(p);
+		box.expandByPoint(p);
+	}
+	box.getCenter(center);
+	let area= 0;
+	let p0= polygon[n-1];
+	for (let j=0; j<n; j++) {
+		let p1= polygon[j];
+		area+= triArea(center.x,center.y,p0.x,p0.y,p1.x,p1.y)/2;
+		p0= p1;
+	}
+	console.log("polyforest "+center.x+" "+center.y+" "+area+" "+
+	  box.min.x+" "+box.min.y+" "+box.max.x+" "+box.max.y);
+	if (area < 0)
+		area= -area;
+	let randomValue= 12345;
+	let random= function() {
+		randomValue=
+		  Math.floor((randomValue*2661+36979) % 175000);
+		return randomValue/174999;
+	}
+	let result= { center: center, box: box, trees: [] };
+	let cp= controlPoints[0];
+	for (let i=0; i<cp.forest.length; i++) {
+		let treeData= cp.forest[i];
+		let pop= treeData.density*area/
+		  (treeData.sizew*treeData.sizew*Math.PI/4);
+		let size0= treeData.scale0;
+		let dsize= treeData.scale1-treeData.scale0;
+		let trees= [];
+		let sx= box.max.x-box.min.x;
+		let sy= box.max.y-box.min.y;
+		for (let j=0; j<100*pop && trees.length<pop; j++) {
+			let tree= { x: box.min.x+sx*random(),
+			  y: box.min.y+sy*random() };
+//			console.log(" try "+j+" "+tree.x+" "+tree.y);
+			if (pointInPolygon(tree,polygon)) {
+				tree.size= size0 + dsize*random();
+				if (calcZ)
+					tree.z= getElevation(
+					  tree.x,tree.y,true);
+				trees.push(tree);
+			}
+		}
+		console.log("addtrees "+pop+" "+trees.length);
+		if (trees.length > 0)
+			result.trees.push({ trees:trees, treeData:treeData });
+	}
+	return result;
 }

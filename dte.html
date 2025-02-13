@@ -111,6 +111,7 @@ THE SOFTWARE.
 <option value=contour>Contour
 <option value=paint>Paint
 <option value=wire>Wire
+<option value=forest>Forest
 </select></td>
 </tr><tr>
 <td align=left>Track Name:</td>
@@ -189,9 +190,6 @@ THE SOFTWARE.
 </select></td>
 </tr>
 </table>
-<hr>
-<canvas id="canvas3d" height="600px" width="990px">
-</canvas>
 <hr>
 <p>
 <div id="results"></div>
@@ -342,6 +340,9 @@ Save Image: saves the current tiles map background as a png file.
 Save Tile Colors: calculates color averages used by Save Tile CutFill to
 set patch model textures.
 <le>
+<hr>
+<canvas id="canvas3d" height="600px" width="990px">
+</canvas>
 <input id="fileopen" type="file" style="display:none" accept=".json"/>
 <input id="fileopentdb" type="file" style="display:none" accept=".tdb"/>
 <input id="filesave" type="file" nwsaveas style="display:none" accept=".json"/>

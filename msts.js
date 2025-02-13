@@ -1418,6 +1418,7 @@ let writeWorldFile= function(tile)
 		fs.writeSync(fd,"\t\tUiD ( "+wfuid+" )\r\n",null,"utf16le");
 		fs.writeSync(fd,"\t\tTreeTexture ( "+treeData.texture+" )\r\n",
 		  null,"utf16le");
+//		fs.writeSync(fd,"\t\tStaticFlags ( 00010100 )\r\n",
 		fs.writeSync(fd,"\t\tStaticFlags ( 00008000 )\r\n",
 		  null,"utf16le");
 		fs.writeSync(fd,"\t\tPosition ( "+
@@ -1920,7 +1921,7 @@ let saveToRoute= function()
 		  track.type == "road" || track.type == "road1" ||
 		  track.type == "dirtroad" || track.type == "dirtroad1" ||
 		  track.type=="contour" || track.type=="paint" ||
-		  track.type=="wire")
+		  track.type=="wire" || track.type=="forest")
 			continue;
 		let dynTrackPoints= track.dynTrackPoints;
 		for (let j=0; j<dynTrackPoints.length-1; j++) {
@@ -2233,7 +2234,7 @@ let saveToRoute= function()
 		  track.type == "road" || track.type == "road1" ||
 		  track.type == "dirtroad" || track.type == "dirtroad1" ||
 		  track.type=="contour" || track.type=="paint" ||
-		  track.type=="wire")
+		  track.type=="wire" || track.type=="forest")
 			continue;
 		let dynTrackPoints= track.dynTrackPoints;
 		let controlPoints= track.controlPoints;
@@ -2291,7 +2292,8 @@ let saveToRoute= function()
 	for (let i=0; i<tracks.length; i++) {
 		let track= tracks[i];
 		if (track.type == "water" || track.type=="contour" ||
-		  track.type=="paint" || track.type=="wire")
+		  track.type=="paint" || track.type=="wire" ||
+		  track.type=="forest")
 			continue;
 		let controlPoints= track.controlPoints;
 		let j1= 0;
@@ -2376,6 +2378,18 @@ let saveToRoute= function()
 				  wp.z+halfLen*wp.dz+7.2,
 				  wp.dx,wp.dy,wp.dz);
 		}
+	}
+	for (let i=0; i<tracks.length; i++) {
+		let track= tracks[i];
+		if (track.type!="forest")
+			continue;
+		let forestData= calcPolyForest(track,true);
+		if (!forestData)
+			continue;
+		let filename= "polyforest"+i+".s";
+		let c= forestData.center;
+		addModel(filename,c.x,c.y,c.z,0,1,0);
+		makePolyForestModel(filename,forestData);
 	}
 	for (let i=0; i<tracks.length; i++) {
 		let track= tracks[i];
@@ -2811,7 +2825,8 @@ let savePatchImage= function(tile,tpm,mtdata)
 	for (let i=0; i<tracks.length; i++) {
 		let track= tracks[i];
 		if (track.type == "water" || track.type=="contour" ||
-		  track.type=="paint" || track.type=="wire")
+		  track.type=="paint" || track.type=="wire" ||
+		  track.type=="forest")
 			continue;
 		setProfile(track.type);
 		let controlPoints= track.controlPoints;
@@ -3252,7 +3267,8 @@ let countPatchTrackPoints= function(tile,i0,j0)
 	for (let i=0; i<tracks.length; i++) {
 		let track= tracks[i];
 		if (track.type == "water" || track.type=="contour" ||
-		  track.type=="paint" || track.type=="wire")
+		  track.type=="paint" || track.type=="wire" ||
+		  track.type=="forest")
 			continue;
 		track.nearPatch= false;
 		let m= 0;
@@ -3626,7 +3642,8 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 	for (let i=0; i<tracks.length; i++) {
 		let track= tracks[i];
 		if (track.type == "water" || track.type=="contour" ||
-		  track.type=="paint" || track.type=="wire")
+		  track.type=="paint" || track.type=="wire" ||
+		  track.type=="forest")
 			continue;
 		setProfile(track.type);
 		if (!overpass)
@@ -4524,13 +4541,15 @@ let writePaths= function()
 	for (let i=0; i<tracks.length; i++) {
 		let track= tracks[i];
 		let controlPoints= track.controlPoints;
-		for (let j=0; j<controlPoints.length-1; j++) {
+		for (let j=0; j<controlPoints.length; j++) {
 			let cp= controlPoints[j];
 //			if (cp.bridge && cp.bridge=="covb" &&
 //			  cp.model && cp.model.filename) {
 			if (cp.name && !cp.name.startsWith("signal")) {
-				writePath(n,cp,controlPoints[j+1]);
-				n++;
+				if (j < controlPoints.length-1) {
+					writePath(n,cp,controlPoints[j+1]);
+					n++;
+				}
 				if (j > 0) {
 					writePath(n,cp,controlPoints[j-1]);
 					n++;
@@ -5384,4 +5403,223 @@ let calcPatchDistance= function()
 			update(p.tile,p.i+1,p.j+1,d);
 		}
 	}
+}
+
+let makePolyForestModel= function(filename,forestData)
+{
+	let path= routeDir+fspath.sep+"SHAPES"+fspath.sep+filename;
+	console.log("write poly forest "+path);
+	const fd= fs.openSync(path,"w");
+	const bom= Buffer.alloc(2);
+	bom.writeUInt16LE(0xfeff,0);
+	fs.writeSync(fd,bom,0,2);
+	fs.writeSync(fd,"SIMISA@@@@@@@@@@JINX0s1t______\r\n",null,"utf16le");
+	fs.writeSync(fd,"\r\n",null,"utf16le");
+	fs.writeSync(fd,"shape (\r\n",null,"utf16le");
+	fs.writeSync(fd," shape_header ( 00000000 00000000 )\r\n",
+	  null,"utf16le");
+	let size= new THREE.Vector3();
+	forestData.box.getSize(size);
+	let radius= size.length()/2;
+	fs.writeSync(fd," volumes ( 1\r\n",null,"utf16le");
+	fs.writeSync(fd,"  vol_sphere (\r\n",null,"utf16le");
+	fs.writeSync(fd,"   vector ( 0 0 0 ) "+radius.toFixed(3)+"\r\n",
+	  null,"utf16le");
+	fs.writeSync(fd,"  )\r\n",null,"utf16le");
+	fs.writeSync(fd," )\r\n",null,"utf16le");
+	fs.writeSync(fd," shader_names ( 1\r\n",null,"utf16le");
+	fs.writeSync(fd,"  named_shader ( BlendATexDiff )\r\n",null,"utf16le");
+	fs.writeSync(fd," )\r\n",null,"utf16le");
+	fs.writeSync(fd," texture_filter_names ( 1\r\n",null,"utf16le");
+	fs.writeSync(fd,"  named_filter_mode ( MipLinear )\r\n",null,"utf16le");
+	fs.writeSync(fd," )\r\n",null,"utf16le");
+	let nTrees= 0;
+	for (let i=0; i<forestData.trees.length; i++) {
+		nTrees+= forestData.trees[i].trees.length;
+	}
+	fs.writeSync(fd," points ( "+(8*nTrees).toFixed(0)+"\r\n",
+	  null,"utf16le");
+	let writePoint= function(x,y,z) {
+		fs.writeSync(fd,"  point ( "+x.toFixed(3)+" "+
+		  z.toFixed(3)+" "+y.toFixed(3)+
+		  " )\r\n",null,"utf16le");
+	}
+	for (let i=0; i<forestData.trees.length; i++) {
+		let treeData= forestData.trees[i].treeData;
+		for (let j=0; j<forestData.trees[i].trees.length; j++) {
+			let tree= forestData.trees[i].trees[j];
+			let w= tree.size*treeData.sizew;
+			let h= tree.size*treeData.sizeh;
+			let x= tree.x-forestData.center.x;
+			let y= tree.y-forestData.center.y;
+			let z= tree.z-forestData.center.z;
+			writePoint(x-w/2,y,z);
+			writePoint(x+w/2,y,z);
+			writePoint(x+w/2,y,z+h);
+			writePoint(x-w/2,y,z+h);
+			writePoint(x,y-w/2,z);
+			writePoint(x,y+w/2,z);
+			writePoint(x,y+w/2,z+h);
+			writePoint(x,y-w/2,z+h);
+		}
+	}
+	fs.writeSync(fd," )\r\n",null,"utf16le");
+	fs.writeSync(fd," uv_points ( 4\r\n",null,"utf16le");
+	fs.writeSync(fd,"  uv_point ( 0 1 )\r\n",null,"utf16le");
+	fs.writeSync(fd,"  uv_point ( 1 1 )\r\n",null,"utf16le");
+	fs.writeSync(fd,"  uv_point ( 1 0 )\r\n",null,"utf16le");
+	fs.writeSync(fd,"  uv_point ( 0 0 )\r\n",null,"utf16le");
+	fs.writeSync(fd," )\r\n",null,"utf16le");
+	fs.writeSync(fd," normals ( 4\r\n",null,"utf16le");
+	fs.writeSync(fd,"  vector ( -1 0 0 )\r\n",null,"utf16le");
+	fs.writeSync(fd,"  vector ( 1 0 0 )\r\n",null,"utf16le");
+	fs.writeSync(fd,"  vector ( 0 0 -1 )\r\n",null,"utf16le");
+	fs.writeSync(fd,"  vector ( 0 0 1 )\r\n",null,"utf16le");
+	fs.writeSync(fd," )\r\n",null,"utf16le");
+	fs.writeSync(fd," sort_vectors ( 1\r\n",null,"utf16le");
+	fs.writeSync(fd,"  vector ( 0 0 0 )\r\n",null,"utf16le");
+	fs.writeSync(fd," )\r\n",null,"utf16le");
+	fs.writeSync(fd," colours ( 0\r\n",null,"utf16le");
+	fs.writeSync(fd," )\r\n",null,"utf16le");
+	fs.writeSync(fd," matrices ( 1\r\n",null,"utf16le");
+	fs.writeSync(fd,"  matrix MAIN ( 1 0 0  0 1 0  0 0 1  0 0 0 )\r\n",
+	  null,"utf16le");
+	fs.writeSync(fd," )\r\n",null,"utf16le");
+	fs.writeSync(fd," images ( "+forestData.trees.length+"\r\n",
+	  null,"utf16le");
+	for (let i=0; i<forestData.trees.length; i++) {
+		let treeData= forestData.trees[i].treeData;
+		fs.writeSync(fd,"  image ( "+treeData.texture+" )\r\n",
+		  null,"utf16le");
+	}
+	fs.writeSync(fd," )\r\n",null,"utf16le");
+	fs.writeSync(fd," textures ( "+forestData.trees.length+"\r\n",
+	  null,"utf16le");
+	for (let i=0; i<forestData.trees.length; i++) {
+		fs.writeSync(fd,"  texture ( "+i+" 0 0.0 ff000000 )\r\n",
+		  null,"utf16le");
+	}
+	fs.writeSync(fd," )\r\n",null,"utf16le");
+	fs.writeSync(fd," light_materials ( 0\r\n",null,"utf16le");
+	fs.writeSync(fd," )\r\n",null,"utf16le");
+	fs.writeSync(fd," light_model_cfgs ( 1\r\n",null,"utf16le");
+	fs.writeSync(fd,"  light_model_cfg ( 00000000\r\n",null,"utf16le");
+	fs.writeSync(fd,"   uv_ops ( 1\r\n",null,"utf16le");
+	fs.writeSync(fd,"    uv_op_copy ( 1 0 )\r\n",null,"utf16le");
+	fs.writeSync(fd,"   )\r\n",null,"utf16le");
+	fs.writeSync(fd,"  )\r\n",null,"utf16le");
+	fs.writeSync(fd," )\r\n",null,"utf16le");
+	fs.writeSync(fd," vtx_states ( 1\r\n",null,"utf16le");
+	fs.writeSync(fd,"  vtx_state ( 00000000 0 -9 0 00000002 )\r\n",
+	  null,"utf16le");
+	fs.writeSync(fd," )\r\n",null,"utf16le");
+	fs.writeSync(fd," prim_states ( "+forestData.trees.length+"\r\n",
+	  null,"utf16le");
+	for (let i=0; i<forestData.trees.length; i++) {
+		fs.writeSync(fd,"  prim_state MAIN"+i+" ( 00000000 0\r\n",
+		  null,"utf16le");
+		fs.writeSync(fd,"   tex_idxs ( 1 "+i+" ) 0 0 1 0 1\r\n",
+		  null,"utf16le");
+		fs.writeSync(fd,"  )\r\n",null,"utf16le");
+	}
+	fs.writeSync(fd," )\r\n",null,"utf16le");
+	fs.writeSync(fd," lod_controls ( 1\r\n",null,"utf16le");
+	fs.writeSync(fd,"  lod_control (\r\n",null,"utf16le");
+	fs.writeSync(fd,"   distance_levels_header ( 0 )\r\n",null,"utf16le");
+	fs.writeSync(fd,"   distance_levels ( 1\r\n",null,"utf16le");
+	fs.writeSync(fd,"    distance_level (\r\n",null,"utf16le");
+	fs.writeSync(fd,"     distance_level_header (\r\n",null,"utf16le");
+	fs.writeSync(fd,"      dlevel_selection ( 4000 )\r\n",null,"utf16le");
+	fs.writeSync(fd,"      hierarchy ( 1 -1 )\r\n",null,"utf16le");
+	fs.writeSync(fd,"     )\r\n",null,"utf16le");
+	fs.writeSync(fd,"     sub_objects ( 1\r\n",null,"utf16le");
+	fs.writeSync(fd,"      sub_object (\r\n",null,"utf16le");
+	fs.writeSync(fd,"       sub_object_header ( 00000400 -1 -1 000001d2 "+
+	  "000001c4\r\n",null,"utf16le");
+	fs.writeSync(fd,"        geometry_info ( "+(8*nTrees)+" 1 0 "+
+	  (24*nTrees)+" 0 0 "+forestData.trees.length+" 0 0 0\r\n",
+	  null,"utf16le");
+	fs.writeSync(fd,"         geometry_nodes ( 1\r\n",null,"utf16le");
+	fs.writeSync(fd,"          geometry_node ( 0 0 "+(8*nTrees)+
+	  " 0 0 0\r\n",null,"utf16le");
+	fs.writeSync(fd,"           cullable_prims ( 2 "+(8*nTrees)+" "+
+	  (24*nTrees)+" )\r\n",null,"utf16le");
+	fs.writeSync(fd,"          )\r\n",null,"utf16le");
+	fs.writeSync(fd,"         )\r\n",null,"utf16le");
+	fs.writeSync(fd,"         geometry_node_map ( 1 0 )\r\n",
+	  null,"utf16le");
+	fs.writeSync(fd,"        )\r\n",null,"utf16le");
+	fs.writeSync(fd,"        subobject_shaders ( 1 0 )\r\n",null,"utf16le");
+	fs.writeSync(fd,"        subobject_light_cfgs ( 1 0 ) 0\r\n",
+	  null,"utf16le");
+	fs.writeSync(fd,"       )\r\n",null,"utf16le");
+	fs.writeSync(fd,"       vertices ( "+(16*nTrees)+"\r\n",null,"utf16le");
+	let printVertex= function(point,normal,uv) {
+		fs.writeSync(fd,"        vertex ( 00000000 "+point+" "+normal+
+		  " FFFFFFFF FF000000\r\n",null,"utf16le");
+		fs.writeSync(fd,"         vertex_uvs ( 1 "+uv+" )\r\n",
+		  null,"utf16le");
+		fs.writeSync(fd,"        )\r\n",null,"utf16le");
+	}
+	for (let i=0; i<nTrees; i++) {
+		for (let j=0; j<2; j++) {
+			let p0= 8*i+j*4;
+			printVertex(p0,2*j,0);
+			printVertex(p0+1,2*j,1);
+			printVertex(p0+2,2*j,2);
+			printVertex(p0+3,2*j,3);
+			printVertex(p0+3,2*j+1,3);
+			printVertex(p0+2,2*j+1,2);
+			printVertex(p0+1,2*j+1,1);
+			printVertex(p0,2*j+1,0);
+		}
+	}
+	fs.writeSync(fd,"       )\r\n",null,"utf16le");
+	fs.writeSync(fd,"       vertex_sets ( 1\r\n",null,"utf16le");
+	fs.writeSync(fd,"        vertex_set ( 0 0 "+(16*nTrees)+" ) \r\n",
+	  null,"utf16le");
+	fs.writeSync(fd,"       )\r\n",null,"utf16le");
+	fs.writeSync(fd,"       primitives ( "+(2*forestData.trees.length)+
+	  "\r\n",null,"utf16le");
+	let v0= 0;
+	for (let i=0; i<forestData.trees.length; i++) {
+		let nt= forestData.trees[i].trees.length;
+		fs.writeSync(fd,"        prim_state_idx ( "+i+" ) \r\n",
+		  null,"utf16le");
+		fs.writeSync(fd,"        indexed_trilist (\r\n",null,"utf16le");
+		fs.writeSync(fd,"         vertex_idxs ( "+(24*nt),
+		  null,"utf16le");
+		for (let j=0; j<2*nt; j++) {
+			fs.writeSync(fd," "+(v0+0)+" "+(v0+1)+" "+(v0+2),
+			  null,"utf16le");
+			fs.writeSync(fd," "+(v0+0)+" "+(v0+2)+" "+(v0+3),
+			  null,"utf16le");
+			fs.writeSync(fd," "+(v0+4)+" "+(v0+5)+" "+(v0+6),
+			  null,"utf16le");
+			fs.writeSync(fd," "+(v0+4)+" "+(v0+6)+" "+(v0+7),
+			  null,"utf16le");
+			v0+= 8;
+		}
+		fs.writeSync(fd," ) \r\n",null,"utf16le");
+		fs.writeSync(fd,"         normal_idxs ( "+(4*nt),
+		  null,"utf16le");
+		for (let j=0; j<nt; j++)
+			fs.writeSync(fd," 0 1 2 3",null,"utf16le");
+		fs.writeSync(fd," ) \r\n",null,"utf16le");
+		fs.writeSync(fd,"         flags ( "+(4*nt),null,"utf16le");
+		for (let j=0; j<nt; j++)
+			fs.writeSync(fd," 00000000 00000000 00000000 00000000",
+			  null,"utf16le");
+		fs.writeSync(fd," ) \r\n",null,"utf16le");
+		fs.writeSync(fd,"        )\r\n",null,"utf16le");
+	}
+	fs.writeSync(fd,"       )\r\n",null,"utf16le");
+	fs.writeSync(fd,"      )\r\n",null,"utf16le");
+	fs.writeSync(fd,"     )\r\n",null,"utf16le");
+	fs.writeSync(fd,"    )\r\n",null,"utf16le");
+	fs.writeSync(fd,"   )\r\n",null,"utf16le");
+	fs.writeSync(fd,"  )\r\n",null,"utf16le");
+	fs.writeSync(fd," )\r\n",null,"utf16le");
+	fs.writeSync(fd,")\r\n",null,"utf16le");
+	fs.closeSync(fd);
 }

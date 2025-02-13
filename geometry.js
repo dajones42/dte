@@ -379,3 +379,29 @@ let segCircInt= function(p1,p2,ctr,r)
 		return { x: ctr.x+x1+t*dx, y: ctr.y+y1+t*dy, a: t };
 	return null;
 }
+
+//	Returns true if the given point is inside the given polygon.
+//	Uses the method of InPoly0() from "Computational Geometry in C"
+//	by Joseph O'Rourke.
+//	Does not handle points on the edge consistently.
+let pointInPolygon= function(point,polygon)
+{
+	let crossings= 0;
+	let p0= polygon[polygon.length-1];
+	for (let i=0; i<polygon.length; i++) {
+		let p1= polygon[i];
+		if ((p1.y>point.y && p0.y<=point.y) ||
+		  (p0.y>point.y && p1.y<=point.y)) {
+			let dx0= p0.x-point.x;
+			let dx1= p1.x-point.x;
+			let dy0= p0.y-point.y;
+			let dy1= p1.y-point.y;
+			let x= (dx1*dy0 - dx0*dy1) / (dy0-dy1);
+			if (x > 0)
+				crossings++;
+		}
+		p0= p1;
+	}
+//	console.log("pointInPolygon "+point.x+" "+point.y+" "+crossings);
+	return crossings%2 == 1;
+}

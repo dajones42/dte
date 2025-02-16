@@ -2551,7 +2551,7 @@ let saveData= function(filename)
 		centerU: centerU,
 		centerV: centerV,
 		scale: scale,
-		addToTrackDb: addToTrackDB,
+		addToTrackDB: addToTrackDB,
 		tracks: [],
 		switches: [],
 		patchModels: [],
@@ -2826,8 +2826,8 @@ let readMaps= function()
 			console.log("map "+scale+" "+cu+" "+cv);
 		}
 	} catch (e) {
-		console.log("cannot read maps.json");
-		console.log(e);
+//		console.log("cannot read maps.json");
+//		console.log(e);
 		maps= [];
 	}
 }

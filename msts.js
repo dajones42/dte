@@ -171,6 +171,7 @@ let readTerrain= function(tile)
 		return;
 	let size= 256*256*2;
 	tile.terrain= Buffer.alloc(size);
+	tile.terrainChanged= false;
 	let path= routeDir+fspath.sep+"TILES"+fspath.sep+tile.filename+"_y.raw";
 	console.log("read "+path);
 	let fd= fs.openSync(path,"r");
@@ -189,11 +190,7 @@ let readTerrain= function(tile)
 		fs.readSync(fd,tile.origTerrain,0,size);
 		fs.closeSync(fd);
 	} else {
-		fd= fs.openSync(path,"w");
-		if (!fd)
-			throw 'cannot create file '+path;
-		fs.writeSync(fd,tile.origTerrain,0,size);
-		fs.closeSync(fd);
+		tile.saveOrig= true;
 	}
 }
 
@@ -209,6 +206,15 @@ let writeTerrain= function(tile)
 		throw 'cannot create file '+path;
 	fs.writeSync(fd,tile.terrain,0,size);
 	fs.closeSync(fd);
+	if (tile.saveOrig && tile.origTerrain) {
+		path= routeDir+fspath.sep+"TILES"+fspath.sep+tile.filename+
+		  "_y.orig";
+		fd= fs.openSync(path,"w");
+		if (!fd)
+			throw 'cannot create file '+path;
+		fs.writeSync(fd,tile.origTerrain,0,size);
+		fs.closeSync(fd);
+	}
 }
 
 //	saves a tile's terrain flags to the f.raw file.
@@ -236,11 +242,10 @@ let writeTerrainFlags= function(tile)
 	fs.closeSync(fd);
 }
 
-//	reads an MSTS unicode SIMISA text file and returns a tree of values and
-//	children arrays.
+//	reads an MSTS unicode SIMISA text file and returns a tree of arrays and
+//	strings.
 let readFile= function(path)
 {
-	let root= { value: null, children: [] };
 	let fd;
 	try {
 		fd= fs.openSync(path,"r");
@@ -310,31 +315,30 @@ let readFile= function(path)
 	}
 	// reads a list of tokens terminated by a ).
 	// calls self recursively to handle sublists.
-	let parseList= function(parent)
+	let parseList= function()
 	{
+		let list= [];
 		for (let token=getToken(); token.length>0; token=getToken()) {
 			if (token == ")")
-				return;
-			let node= { value: null, children: [] };
-			parent.children.push(node);
+				return list;
 			if (token == "(")
-				parseList(node);
+				list.push(parseList());
 			else
-				node.value= token;
+				list.push(token);
 		}
+		return list;
 	}
 	let token= getToken();
 	if (token.substr(0,6) != "SIMISA") {
 		fs.close(fd);
 		throw "file heading not found";
 	}
+	let root= [];
 	for (let token=getToken(); token.length>0; token=getToken()) {
-		let node= { value: null, children: [] };
-		root.children.push(node);
 		if (token == "(")
-			parseList(node);
+			root.push(parseList());
 		else
-			node.value= token;
+			root.push(token);
 	}
 	fs.closeSync(fd);
 	return root;
@@ -351,18 +355,18 @@ let readTSection= function(routePath)
 	// saves track shape path information from a file node.
 	let makePath= function(node)
 	{
-		let n= parseInt(node.children[0].value);
+		let n= parseInt(node[0]);
 		let path= {
 			start: [
-				parseFloat(node.children[1].value),
-				parseFloat(node.children[2].value),
-				parseFloat(node.children[3].value)
+				parseFloat(node[1]),
+				parseFloat(node[2]),
+				parseFloat(node[3])
 			],
-			angle: parseFloat(node.children[4].value),
+			angle: parseFloat(node[4]),
 			sections: []
 		};
 		for (let i=0; i<n; i++) {
-			path.sections.push(parseInt(node.children[i+5].value));
+			path.sections.push(parseInt(node[i+5]));
 		}
 		return path;
 	}
@@ -370,91 +374,99 @@ let readTSection= function(routePath)
 	let saveTrackShape= function(node)
 	{
 		let shape= { paths: [] };
-		for (let i=0; i<node.children.length; i++) {
-			let c= node.children[i];
-			if (c.value=="FileName") {
-				shape.filename= node.
-				  children[i+1].children[0].value;
-			} else if (c.value=="SectionIdx") {
-				shape.paths.push(makePath(node.children[i+1]));
-			} else if (c.value=="MainRoute") {
-				shape.mainRoute= parseInt(node.
-				  children[i+1].children[0].value);
+		for (let i=0; i<node.length; i++) {
+			if (typeof node[i] != "string")
+				continue;
+			let lower= node[i].toLowerCase();
+			if (lower == "FileName") {
+				shape.filename= node[i+1][0];
+			} else if (lower == "sectionidx") {
+				shape.paths.push(makePath(node[i+1]));
+			} else if (lower == "mainroute") {
+				shape.mainRoute= parseInt(node[i+1][0]);
 			}
 		}
-		let index= parseInt(node.children[0].value);
+		let index= parseInt(node[0]);
 		result.shapes[index]= shape;
 	}
 	// saves track section information from a file node.
 	let saveTrackSection= function(node)
 	{
 		let section= {};
-		for (let i=0; i<node.children.length; i++) {
-			let c= node.children[i];
-			if (c.value=="SectionSize") {
-				section.length= parseFloat(node.
-				  children[i+1].children[1].value);
-			} else if (c.value=="SectionCurve") {
-				section.radius= parseFloat(node.
-				  children[i+1].children[0].value);
-				section.angle= parseFloat(node.
-				  children[i+1].children[1].value);
+		for (let i=0; i<node.length; i++) {
+			if (typeof node[i] != "string")
+				continue;
+			let lower= node[i].toLowerCase();
+			if (lower == "sectionsize") {
+				section.length= parseFloat(node[i+1][1]);
+			} else if (lower == "sectioncurve") {
+				section.radius= parseFloat(node[i+1][0]);
+				section.angle= parseFloat(node[i+1][1]);
 			}
 		}
-		let index= parseInt(node.children[0].value);
+		let index= parseInt(node[0]);
 		result.sections[index]= section;
 	}
 	// saves track section information from a route tsection file node.
 	let saveRTrackSection= function(node)
 	{
 		let section= { dynTrack: true };
-		let radius= parseFloat(node.children[4].value);
+		let radius= parseFloat(node[4]);
 		if (radius == 0) {
-			section.length= parseFloat(node.children[3].value);
+			section.length= parseFloat(node[3]);
 		} else {
 			section.radius= radius;
-			section.angle= 180/Math.PI*
-			  parseFloat(node.children[3].value);
+			section.angle= 180/Math.PI*parseFloat(node[3]);
 		}
-		let index= parseInt(node.children[2].value);
+		let index= parseInt(node[2]);
 		result.sections[index]= section;
 	}
 	// saves track path information from a route tsection file node.
 	let saveRTrackPath= function(node)
 	{
 		let path= [];
-		let n= parseInt(node.children[1].value);
+		let n= parseInt(node[1]);
 		for (let i=0; i<n; i++)
-			path.push(parseInt(node.children[i+2].value));
-		let index= parseInt(node.children[0].value);
+			path.push(parseInt(node[i+2]));
+		let index= parseInt(node[0]);
 		result.trackPaths[index]= path;
 	}
-	for (let i=0; i<gts.children.length; i++) {
-		let c= gts.children[i];
-		if (c.value!="TrackShapes" && c.value!="TrackSections")
+	for (let i=0; i<gts.length; i++) {
+		if (typeof gts[i] != "string")
 			continue;
-		c= gts.children[i+1];
-		for (let j=0; j<c.children.length; j++) {
-			if (c.children[j].value=="TrackShape") {
-				saveTrackShape(c.children[j+1]);
-			} else if (c.children[j].value=="TrackSection") {
-				saveTrackSection(c.children[j+1]);
+		let lower= gts[i].toLowerCase();
+		if (lower!="trackshapes" && lower!="tracksections")
+			continue;
+		let node= gts[i+1];
+		for (let j=0; j<node.length; j++) {
+			if (typeof node[j] != "string")
+				continue;
+			lower= node[j].toLowerCase();
+			if (lower == "trackshape") {
+				saveTrackShape(node[j+1]);
+			} else if (lower == "tracksection") {
+				saveTrackSection(node[j+1]);
 			}
 		}
 	}
 	path= routePath+fspath.sep+'tsection.dat';
 	let rts= readFile(path);
-	for (let i=0; i<rts.children.length; i++) {
-		let c= rts.children[i];
-		if (c.value!="TrackSections" && c.value!="SectionIdx")
+	for (let i=0; i<rts.length; i++) {
+		if (typeof rts[i] != "string")
 			continue;
-		c= rts.children[i+1];
-		for (let j=0; j<c.children.length; j++) {
-			if (c.children[j].value=="TrackSection") {
-				saveRTrackSection(c.children[j+1]);
+		let lower= rts[i].toLowerCase();
+		if (lower!="tracksections" && lower!="sectionidx")
+			continue;
+		let node= rts[i+1];
+		for (let j=0; j<node.length; j++) {
+			if (typeof node[j] != "string")
+				continue;
+			lower= node[j].toLowerCase();
+			if (lower == "tracksection") {
+				saveRTrackSection(node[j+1]);
 			}
-			if (c.children[j].value=="TrackPath") {
-				saveRTrackPath(c.children[j+1]);
+			if (lower =="trackpath") {
+				saveRTrackPath(node[j+1]);
 			}
 		}
 	}
@@ -477,53 +489,53 @@ let readTrackDB= function(path)
 	// saves junction node information from a tdb file node.
 	let parseJunctionNode= function(fnode,tnode)
 	{
-		tnode.unk2= parseInt(fnode.children[0].value);//always zero?
-		tnode.shape= parseInt(fnode.children[1].value);
-		tnode.manual= parseInt(fnode.children[2].value);
+		tnode.unk2= parseInt(fnode[0]);//always zero?
+		tnode.shape= parseInt(fnode[1]);
+		tnode.manual= parseInt(fnode[2]);
 	}
 	// saves Uid information from a tdb file node.
 	let parseUid= function(fnode,tnode)
 	{
-		tnode.wftx= parseInt(fnode.children[0].value);
-		tnode.wftz= parseInt(fnode.children[1].value);
-		tnode.wfuid= parseInt(fnode.children[2].value);
-		tnode.unk= parseInt(fnode.children[3].value);
-		tnode.tx= parseInt(fnode.children[4].value);
-		tnode.tz= parseInt(fnode.children[5].value);
-		tnode.x= parseFloat(fnode.children[6].value);
-		tnode.y= parseFloat(fnode.children[7].value);
-		tnode.z= parseFloat(fnode.children[8].value);
+		tnode.wftx= parseInt(fnode[0]);
+		tnode.wftz= parseInt(fnode[1]);
+		tnode.wfuid= parseInt(fnode[2]);
+		tnode.unk= parseInt(fnode[3]);
+		tnode.tx= parseInt(fnode[4]);
+		tnode.tz= parseInt(fnode[5]);
+		tnode.x= parseFloat(fnode[6]);
+		tnode.y= parseFloat(fnode[7]);
+		tnode.z= parseFloat(fnode[8]);
 //		rotation angles
-		tnode.ax= parseFloat(fnode.children[9].value);
-		tnode.ay= parseFloat(fnode.children[10].value);
-		tnode.az= parseFloat(fnode.children[11].value);
+		tnode.ax= parseFloat(fnode[9]);
+		tnode.ay= parseFloat(fnode[10]);
+		tnode.az= parseFloat(fnode[11]);
 	}
 	// saves vector section information from a tdb file node.
 	let parseVectorSections= function(fnode)
 	{
-		let n= parseInt(fnode.children[0].value);
+		let n= parseInt(fnode[0]);
 		let sections= [];
 		for (let i=0; i<n; i++) {
 			let section= {};
 			let j= i*16+1;
-			section.sectionID= parseInt(fnode.children[j].value);
-			section.shapeID= parseInt(fnode.children[j+1].value);
-			section.wftx= parseInt(fnode.children[j+2].value);
-			section.wftz= parseInt(fnode.children[j+3].value);
-			section.wfuid= parseInt(fnode.children[j+4].value);
-			section.flag1= parseInt(fnode.children[j+5].value);
+			section.sectionID= parseInt(fnode[j]);
+			section.shapeID= parseInt(fnode[j+1]);
+			section.wftx= parseInt(fnode[j+2]);
+			section.wftz= parseInt(fnode[j+3]);
+			section.wfuid= parseInt(fnode[j+4]);
+			section.flag1= parseInt(fnode[j+5]);
 //			flag1==1 for first section and ==2 for flipped section?
-			section.flag2= parseInt(fnode.children[j+6].value);
-			section.flag3= fnode.children[j+7].value;
-			section.tx= parseInt(fnode.children[j+8].value);
-			section.tz= parseInt(fnode.children[j+9].value);
-			section.x= parseFloat(fnode.children[j+10].value);
-			section.y= parseFloat(fnode.children[j+11].value);
-			section.z= parseFloat(fnode.children[j+12].value);
+			section.flag2= parseInt(fnode[j+6]);
+			section.flag3= fnode[j+7];
+			section.tx= parseInt(fnode[j+8]);
+			section.tz= parseInt(fnode[j+9]);
+			section.x= parseFloat(fnode[j+10]);
+			section.y= parseFloat(fnode[j+11]);
+			section.z= parseFloat(fnode[j+12]);
 //			rotation angles
-			section.ax= parseFloat(fnode.children[j+13].value);
-			section.ay= parseFloat(fnode.children[j+14].value);
-			section.az= parseFloat(fnode.children[j+15].value);
+			section.ax= parseFloat(fnode[j+13]);
+			section.ay= parseFloat(fnode[j+14]);
+			section.az= parseFloat(fnode[j+15]);
 			sections[i]= section;
 		}
 		return sections;
@@ -531,12 +543,14 @@ let readTrackDB= function(path)
 	// saves TrItemRef information from a tdb file node.
 	let parseItemRefs= function(fnode)
 	{
-		let n= parseInt(fnode.children[0].value);
+		let n= parseInt(fnode[0]);
 		let itemRefs= [];
-		for (let i=1; i<fnode.children.length; i++) {
-			if (fnode.children[i].value == "TrItemRef")
-				itemRefs.push(parseInt(
-				  fnode.children[i+1].children[0].value));
+		for (let i=1; i<fnode.length; i++) {
+			if (typeof fnode[i] != "string")
+				continue;
+			let lower= fnode[i].toLowerCase();
+			if (lower == "tritemref")
+				itemRefs.push(parseInt(fnode[i+1][0]));
 		}
 		return itemRefs;
 	}
@@ -544,12 +558,13 @@ let readTrackDB= function(path)
 	let parsePins= function(fnode)
 	{
 		let pins= [];
-		for (let i=0; i<fnode.children.length; i++) {
-			if (fnode.children[i].value == "TrPin") {
-				let j= parseInt(
-				  fnode.children[i+1].children[0].value);
-				let end= parseInt(
-				  fnode.children[i+1].children[1].value);
+		for (let i=0; i<fnode.length; i++) {
+			if (typeof fnode[i] != "string")
+				continue;
+			let lower= fnode[i].toLowerCase();
+			if (lower == "trpin") {
+				let j= parseInt(fnode[i+1][0]);
+				let end= parseInt(fnode[i+1][1]);
 				pins.push({ node: j, end: end });
 			}
 		}
@@ -558,51 +573,58 @@ let readTrackDB= function(path)
 	// saves track node information from a tdb file node.
 	let saveTrackNode= function(fnode)
 	{
-		let index= parseInt(fnode.children[0].value);
+		let index= parseInt(fnode[0]);
 		let tnode= { id: index };
-		for (let i=0; i<fnode.children.length; i++) {
-			if (fnode.children[i].value == "TrEndNode") {
-				parseEndNode(fnode.children[i+1],tnode);
-			} else if (fnode.children[i].value =="TrJunctionNode") {
-				parseJunctionNode(fnode.children[i+1],tnode);
-			} else if (fnode.children[i].value == "UiD") {
-				parseUid(fnode.children[i+1],tnode);
-			} else if (fnode.children[i].value == "TrVectorNode") {
-				let c= fnode.children[i+1];
+		for (let i=0; i<fnode.length; i++) {
+			if (typeof fnode[i] != "string")
+				continue;
+			let lower= fnode[i].toLowerCase();
+			if (lower == "trendnode") {
+				parseEndNode(fnode[i+1],tnode);
+			} else if (lower =="trjunctionnode") {
+				parseJunctionNode(fnode[i+1],tnode);
+			} else if (lower == "uid") {
+				parseUid(fnode[i+1],tnode);
+			} else if (lower == "trvectornode") {
 				tnode.sections=
-				  parseVectorSections(c.children[1]);
-				if (c.children.length>=4 &&
-				  c.children[2].value=="TrItemRefs")
+				  parseVectorSections(fnode[i+1][1]);
+				if (fnode[i+1].length>=4 &&
+				  typeof fnode[i+1][2]=="string" &&
+				  fnode[i+1][2].toLowerCase()=="tritemrefs")
 					tnode.itemRefs=
-					  parseItemRefs(c.children[3]);
-			} else if (fnode.children[i].value == "TrPins") {
+					  parseItemRefs(fnode[i+1][3]);
+			} else if (lower == "trpins") {
 				tnode.pins=
-				  parsePins(fnode.children[i+1]);
+				  parsePins(fnode[i+1]);
 			}
 		}
 		result.nodes[index]= tnode;
 	}
 	let tdb= readFile(path);
-	if (tdb.children[0].value != "TrackDB")
+	if (typeof tdb[0]!="string" || tdb[0].toLowerCase() != "trackdb")
 		throw "bad TrackDB file "+path;
-	tdb= tdb.children[1];
-	for (let i=0; i<tdb.children.length; i++) {
-		let c= tdb.children[i];
-		if (c.value == "Serial") {
-			c= tdb.children[i+1];
-			result.serial= parseInt(c.children[0].value);
+	tdb= tdb[1];
+	for (let i=0; i<tdb.length; i++) {
+		if (typeof tdb[i] != "string")
+			continue;
+		let lower= tdb[i].toLowerCase();
+		if (lower == "serial") {
+			result.serial= parseInt(tdb[i+1][0]);
 			continue;
 		}
-		if (c.value=="TrItemTable") {
-			result.itemTable= tdb.children[i+1].children;
+		if (lower == "tritemtable") {
+			result.itemTable= tdb[i+1];
 			continue;
 		}
-		if (c.value!="TrackNodes")
+		if (lower != "tracknodes")
 			continue;
-		c= tdb.children[i+1];
-		for (let j=0; j<c.children.length; j++) {
-			if (c.children[j].value=="TrackNode") {
-				saveTrackNode(c.children[j+1]);
+		let node= tdb[i+1];
+		for (let j=0; j<node.length; j++) {
+			if (typeof node[j] != "string")
+				continue;
+			let lower= node[j].toLowerCase();
+			if (lower == "tracknode") {
+				saveTrackNode(node[j+1]);
 			}
 		}
 	}
@@ -691,6 +713,7 @@ let setTerrainElevation= function(i,j,tile,elev,both)
 		tile.terrain.writeUInt16LE(u,(i*256+j)*2);
 		if (both)
 			tile.origTerrain.writeUInt16LE(u,(i*256+j)*2);
+		tile.terrainChanged= true;
 	}
 	if (i<256 && j>=256) {
 		if (!tile.tile21)
@@ -876,10 +899,10 @@ let writeTrackDB= function(tdb)
 	fs.writeSync(fd,"\t)\r\n",null,"utf16le");
 	if (tdb.itemTable) {
 		let table= tdb.itemTable;
-		fs.writeSync(fd,"\tTrItemTable ( "+table[0].value+
+		fs.writeSync(fd,"\tTrItemTable ( "+table[0]+
 		  "\r\n",null,"utf16le");
 		for (let i=1; i<table.length; i+=2) {
-			printItem(fd,table[i].value,table[i+1].children,2);
+			printItem(fd,table[i],table[i+1],2);
 		}
 		fs.writeSync(fd,"\t)\r\n",null,"utf16le");
 	} else if (tdb.items) {
@@ -1312,16 +1335,18 @@ let setNextUid= function(tile)
 	let wFile= readFile(path);
 	if (!wFile)
 		return;
-	if (wFile.children[0].value != "Tr_Worldfile")
+	if (wFile[0].toLowerCase() != "tr_worldfile")
 		throw "bad .w file "+path;
-	wFile= wFile.children[1];
-	for (let i=0; i<wFile.children.length; i++) {
-		let c= wFile.children[i];
-		for (let j=0; j<c.children.length; j++) {
-			let cj= c.children[j];
-			if (cj.value == "UiD") {
-				cj= c.children[j+1];
-				let uid= parseInt(cj.children[0].value);
+	wFile= wFile[1];
+	for (let i=0; i<wFile.length; i++) {
+		if (typeof wFile[i] != "string")
+			continue;
+		let node= wFile[i+1];
+		for (let j=0; j<node.length; j++) {
+			if (typeof node[j] != "string")
+				continue;
+			if (node[j].toLowerCase() == "uid") {
+				let uid= parseInt(node[j+1][0]);
 				if (tile.nextUid <= uid)
 					tile.nextUid= uid+1;
 			}
@@ -1336,10 +1361,11 @@ let writeWorldFile= function(tile)
 {
 	let path= getWorldFilePath(tile);
 	let wFile= readFile(path);
-	if (wFile && wFile.children[0].value != "Tr_Worldfile")
+	if (!wFile)
+		return;
+	if (wFile[0].toLowerCase() != "tr_worldfile")
 		throw "bad .w file "+path;
-	if (wFile)
-		wFile= wFile.children[1];
+	wFile= wFile[1];
 	console.log("write wfile "+path);
 	const fd= fs.openSync(path,"w");
 	const bom= Buffer.alloc(2);
@@ -1348,65 +1374,20 @@ let writeWorldFile= function(tile)
 	fs.writeSync(fd,"SIMISA@@@@@@@@@@JINX0w0t______\r\n",null,"utf16le");
 	fs.writeSync(fd,"\r\n",null,"utf16le");
 	fs.writeSync(fd,"Tr_Worldfile (\r\n",null,"utf16le");
-	let printWItems= function(c,c1,indent) {
-		for (let i=0; i<indent; i++)
-			fs.writeSync(fd,"\t",null,"utf16le");
-		fs.writeSync(fd,c.value,null,"utf16le");
-		fs.writeSync(fd," (",null,"utf16le");
-		let n= 0;
-		for (let i=0; i<c1.children.length; i++) {
-			let c2= c1.children[i];
-			if (c2.children.length>0)
-				n++;
-		}
-		if (n > 0) {
-			fs.writeSync(fd,"\r\n",null,"utf16le");
-			for (let i=0; i<c1.children.length; i++) {
-				let c2= c1.children[i];
-				if (i<c1.children.length-1 &&
-				  c1.children[i+1].children.length>0) {
-					printWItems(c2,c1.children[i+1],
-					  indent+1);
-					i++;
-				} else {
-					fs.writeSync(fd," ",null,"utf16le");
-					fs.writeSync(fd,c2.value,null,
-					  "utf16le");
-				}
-			}
-			for (let i=0; i<indent; i++)
-				fs.writeSync(fd,"\t",null,"utf16le");
-		} else {
-			for (let i=0; i<c1.children.length; i++) {
-				let c2= c1.children[i];
-				fs.writeSync(fd," ",null,"utf16le");
-				fs.writeSync(fd,c2.value,null,"utf16le");
-			}
-			fs.writeSync(fd," ",null,"utf16le");
-		}
-		fs.writeSync(fd,")\r\n",null,"utf16le");
-	}
-	let getFileName= function(children) {
+	let myVdbid= "4123456789";
+	let isMyVdbid= function(children) {
 		for (let i=0; i<children.length; i+=2) {
-			if (children[i].value == "FileName")
-				return children[i+1].children[0].value;
+			let child= children[i];
+			if (typeof child=="string" &&
+			  child.toLowerCase()=="vdbid")
+				return children[i+1][0]==myVdbid;
 		}
-		return "";
+		return false;
 	}
-	for (let i=0; wFile && addToTrackDB && i<wFile.children.length; i+=2) {
-		let c= wFile.children[i];
-		if (c.value == "Static") {
-			let fn= getFileName(wFile.children[i+1].children);
-			if (fn.substr(0,10) == "t"+tile.filename) {
-				console.log("skip "+fn);
-				continue;
-			}
-		}
-		if (!addToTrackDB && (c.children.length>0 ||
-		  c.value=="Dyntrack" || c.value=="Trackobj"))
+	for (let i=0; wFile && addToTrackDB && i<wFile.length; i+=2) {
+		if (isMyVdbid(wFile[i+1]))
 			continue;
-//		console.log("wfc "+i+" "+c.value+" "+c.children.length);
-		printItem(fd,c.value,wFile.children[i+1].children,1);
+		printItem(fd,wFile[i],wFile[i+1],1);
 	}
 	let saveForest= function(model,type2,treeData) {
 		let forest= model.forest;
@@ -1449,7 +1430,7 @@ let writeWorldFile= function(tile)
 		fs.writeSync(fd,"\t\tPopulation ( "+
 		  pop.toFixed(0)+" )\r\n",
 		  null,"utf16le");
-		fs.writeSync(fd,"\t\tVDbId ( 4294967294 )\r\n",
+		fs.writeSync(fd,"\t\tVDbId ( "+myVdbid+" )\r\n",
 		  null,"utf16le");
 		fs.writeSync(fd,"\t)\r\n",null,"utf16le");
 	}
@@ -1473,7 +1454,7 @@ let writeWorldFile= function(tile)
 		  null,"utf16le");
 		fs.writeSync(fd,"\t\tQDirection ( 0 0 0 1)\r\n",
 		  null,"utf16le");
-		fs.writeSync(fd,"\t\tVDbId ( 4294967294 )\r\n",
+		fs.writeSync(fd,"\t\tVDbId ( "+myVdbid+" )\r\n",
 		  null,"utf16le");
 		fs.writeSync(fd,"\t)\r\n",null,"utf16le");
 	}
@@ -1574,7 +1555,7 @@ let writeWorldFile= function(tile)
 			  q.x.toFixed(5)+" "+q.y.toFixed(5)+" "+
 			  q.z.toFixed(5)+" "+q.w.toFixed(5)+" )\r\n",
 			  null,"utf16le");
-			fs.writeSync(fd,"\t\tVDbId ( 4294967294 )\r\n",
+			fs.writeSync(fd,"\t\tVDbId ( "+myVdbid+" )\r\n",
 			  null,"utf16le");
 			fs.writeSync(fd,"\t)\r\n",null,"utf16le");
 		} else if (model.signal) {
@@ -1595,7 +1576,7 @@ let writeWorldFile= function(tile)
 			  q.x.toFixed(5)+" "+q.y.toFixed(5)+" "+
 			  q.z.toFixed(5)+" "+q.w.toFixed(5)+" )\r\n",
 			  null,"utf16le");
-			fs.writeSync(fd,"\t\tVDbId ( 4294967294 )\r\n",
+			fs.writeSync(fd,"\t\tVDbId ( "+myVdbid+" )\r\n",
 			  null,"utf16le");
 			fs.writeSync(fd,"\t\tSignalSubObj ( 00000001 )\r\n",
 			  null,"utf16le");
@@ -1629,7 +1610,7 @@ let writeWorldFile= function(tile)
 			  q.x.toFixed(5)+" "+q.y.toFixed(5)+" "+
 			  q.z.toFixed(5)+" "+q.w.toFixed(5)+" )\r\n",
 			  null,"utf16le");
-			fs.writeSync(fd,"\t\tVDbId ( 4294967294 )\r\n",
+			fs.writeSync(fd,"\t\tVDbId ( "+myVdbid+" )\r\n",
 			  null,"utf16le");
 			fs.writeSync(fd,"\t)\r\n",null,"utf16le");
 		} else if (model.forest) {
@@ -1683,7 +1664,7 @@ let writeWorldFile= function(tile)
 			  q.x.toFixed(5)+" "+q.y.toFixed(5)+" "+
 			  q.z.toFixed(5)+" "+q.w.toFixed(5)+" )\r\n",
 			  null,"utf16le");
-			fs.writeSync(fd,"\t\tVDbId ( 4294967294 )\r\n",
+			fs.writeSync(fd,"\t\tVDbId ( "+myVdbid+" )\r\n",
 			  null,"utf16le");
 			fs.writeSync(fd,"\t)\r\n",null,"utf16le");
 		}
@@ -1709,7 +1690,7 @@ let writeWorldFile= function(tile)
 		  q.x.toFixed(5)+" "+q.y.toFixed(5)+" "+
 		  q.z.toFixed(5)+" "+q.w.toFixed(5)+" )\r\n",
 		  null,"utf16le");
-		fs.writeSync(fd,"\t\tVDbId ( 4294967294 )\r\n",
+		fs.writeSync(fd,"\t\tVDbId ( "+myVdbid+" )\r\n",
 		  null,"utf16le");
 		fs.writeSync(fd,"\t)\r\n",null,"utf16le");
 	}
@@ -1722,27 +1703,28 @@ let printItem= function(fd,label,children,indent)
 {
 	for (let i=0; i<indent; i++)
 		fs.writeSync(fd,"\t",null,"utf16le");
-	fs.writeSync(fd,label,null,"utf16le");
+	if (label)
+		fs.writeSync(fd,label,null,"utf16le");
 	fs.writeSync(fd," (",null,"utf16le");
 	let n= 0;
 	for (let i=0; i<children.length; i++) {
 		let child= children[i];
-		if (child.children.length>0)
+		if (typeof child != "string")
 			n++;
 	}
 	if (n > 0) {
 		fs.writeSync(fd,"\r\n",null,"utf16le");
 		for (let i=0; i<children.length; i++) {
 			let child= children[i];
-			if (i<children.length-1 &&
-			  children[i+1].children.length>0) {
-				printItem(fd,child.value,children[i+1].children,
-				  indent+1);
+			if (typeof child != "string") {
+				printItem(fd,null,children[i],indent+1);
+			} else if (i<children.length-1 &&
+			  typeof children[i+1]!="string") {
+				printItem(fd,child,children[i+1],indent+1);
 				i++;
 			} else {
 				fs.writeSync(fd," ",null,"utf16le");
-				fs.writeSync(fd,child.value,null,
-				  "utf16le");
+				fs.writeSync(fd,child,null,"utf16le");
 			}
 		}
 		for (let i=0; i<indent; i++)
@@ -1751,7 +1733,7 @@ let printItem= function(fd,label,children,indent)
 		for (let i=0; i<children.length; i++) {
 			let child= children[i];
 			fs.writeSync(fd," ",null,"utf16le");
-			fs.writeSync(fd,child.value,null,"utf16le");
+			fs.writeSync(fd,child,null,"utf16le");
 		}
 		fs.writeSync(fd," ",null,"utf16le");
 	}
@@ -2412,11 +2394,13 @@ let saveToRoute= function()
 		let tile= tiles[i];
 		if (tile.models.length>0 || !addToTrackDB)
 			writeWorldFile(tile);
-		if (tile.terrain)
+		if (tile.terrain && tile.terrainChanged)
 			writeTerrain(tile);
 //		if (tile.patchModels)
 //			writeTerrainFlags(tile);
 	}
+	if (tdb.nodes.length == 0)
+		return;
 	if (addToTrackDB) {
 		mergeTrackDB(trackDB,tdb);
 		tdb= trackDB;

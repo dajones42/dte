@@ -48,6 +48,10 @@ let setupMenu= function() {
 				e.click();
 			}
 		}));
+		fileMenu.append(new nw.MenuItem({
+			label: 'Save to Route',
+			click: saveToRoute
+		}));
 	}
 	fileMenu.append(new nw.MenuItem({
 		label: 'Import CSV',
@@ -65,10 +69,6 @@ let setupMenu= function() {
 	}
 	if (trackDB && !addToTrackDB) {
 		fileMenu.append(new nw.MenuItem({
-			label: 'Save to Route',
-			click: saveToRoute
-		}));
-		fileMenu.append(new nw.MenuItem({
 			label: 'Add Tiles',
 			click: addTiles
 		}));
@@ -76,11 +76,11 @@ let setupMenu= function() {
 			label: 'Save Tile Image',
 			click: saveTileImage
 		}));
+		fileMenu.append(new nw.MenuItem({
+			label: 'Save Tile Cut&Fill',
+			click: saveTileCutFill
+		}));
 	}
-	fileMenu.append(new nw.MenuItem({
-		label: 'Save Tile Cut&Fill',
-		click: saveTileCutFill
-	}));
 //	fileMenu.append(new nw.MenuItem({
 //		label: 'Save Elevated Track',
 //		click: saveElevatedTracks
@@ -284,7 +284,7 @@ let setupFileDialogs= function()
 			findCenter();
 			readProjection();
 			calcTrackDBUV();
-			convertTrackDB();
+//			convertTrackDB();
 			renderCanvas();
 			setupMenu();
 		});
@@ -292,6 +292,7 @@ let setupFileDialogs= function()
 		function(e) {
 //			console.log('open '+this.value);
 			readData(this.value);
+			calcTrackDBUV();
 			setupMenu();
 		});
 	document.getElementById('filesave').addEventListener('change',

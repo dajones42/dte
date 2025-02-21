@@ -383,8 +383,9 @@ let renderMap= function()
 				context.fillStyle= "yellow";
 				context.fillRect(u-2,v-2,4,4);
 			}
-			if (track.type!="forest" && cp.direction &&
-			  (cp.forest || (cp.model && cp.model.size))) {
+			if (cp.direction &&
+			  ((cp.forest && cp.forest.areaw) ||
+			   (cp.model && cp.model.size))) {
 				let dx= cp.direction.x;
 				let dy= -cp.direction.y;
 				let w= cp.forest ?

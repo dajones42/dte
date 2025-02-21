@@ -2275,7 +2275,7 @@ let saveToRoute= function()
 		let track= tracks[i];
 		if (track.type == "water" || track.type=="contour" ||
 		  track.type=="paint" || track.type=="wire" ||
-		  track.type=="forest")
+		  (track.type=="forest" && track.controlPoints.length>1))
 			continue;
 		let controlPoints= track.controlPoints;
 		let j1= 0;
@@ -5606,4 +5606,33 @@ let makePolyForestModel= function(filename,forestData)
 	fs.writeSync(fd," )\r\n",null,"utf16le");
 	fs.writeSync(fd,")\r\n",null,"utf16le");
 	fs.closeSync(fd);
+}
+
+let readForestsDat= function()
+{
+	path= routeDir+fspath.sep+'forests.dat';
+	let forests= readFile(path);
+	if (!forests)
+		return null;
+	let treeTypes= [];
+	for (let i=0; i<forests.length-1; i++) {
+		if (typeof forests[i]=="string" &&
+		  forests[i].toLowerCase()=="forest") {
+			let treeType= forests[i+1];
+			let data= {
+			  name: treeType[0],
+			  texture: treeType[1],
+			  scale0: parseFloat(treeType[4]),
+			  scale1: parseFloat(treeType[5]),
+			  sizew: parseFloat(treeType[2]),
+			  sizeh: parseFloat(treeType[3]),
+			  density: 0
+			};
+			if (treeType.length > 6)
+				data.density= parseFloat(treeType[6]);
+			treeTypes.push(data);
+		}
+	}
+//	console.log("tree types "+treeTypes.length);
+	return treeTypes;
 }

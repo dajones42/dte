@@ -3292,82 +3292,93 @@ let attachModel= function()
 	renderCanvas();
 }
 
-let treeData= {
-	oak: {	texture: "BurOak.ace",
-		scale0: .9, scale1: 1.7, sizew: 14, sizeh: 17
+let treeData= [
+	{
+		name: "Oak",	texture: "BurOak.ace",
+		scale0: .9, scale1: 1.7, sizew: 14, sizeh: 17, density: 0
 	},
-	pine: {	texture: "MSAmericanPine31E.ace",
-		scale0: .9, scale1: 1.4, sizew: 9, sizeh: 17
+	{
+		name: "Pine",	texture: "MSAmericanPine31E.ace",
+		scale0: .9, scale1: 1.4, sizew: 9, sizeh: 17, density: .4
 	},
-	birch: { texture: "PaperBirch.ace",
-		scale0: .9, scale1: 1.7, sizew: 12, sizeh: 15
+	{
+		name: "Birch", texture: "PaperBirch.ace",
+		scale0: .9, scale1: 1.7, sizew: 12, sizeh: 15, density: 0
 	},
-	sugarmaple: { texture: "SugarMaple.ace",
-		scale0: .9, scale1: 1.6, sizew: 12, sizeh: 14
+	{
+		name: "Sugar Maple", texture: "SugarMaple.ace",
+		scale0: .9, scale1: 1.6, sizew: 12, sizeh: 14, density: 0
 	},
-	norwaymaple: { texture: "CrimsonNorwayMaple.ace",
-		scale0: .8, scale1: 1.5, sizew: 12, sizeh: 15
+	{
+		name: "Norway Maple", texture: "CrimsonNorwayMaple.ace",
+		scale0: .8, scale1: 1.5, sizew: 12, sizeh: 15, density: 0
 	},
-	fieldmaple: { texture: "MSFieldMaple23E.ace",
-		scale0: .7, scale1: 1.3, sizew: 12, sizeh: 14
+	{
+		name: "Field Maple", texture: "MSFieldMaple23E.ace",
+		scale0: .7, scale1: 1.3, sizew: 12, sizeh: 14, density: .5
 	}
-};
+];
+
+let setupForestData= function()
+{
+	let forestsDat= readForestsDat();
+	if (forestsDat)
+		treeData= forestsDat;
+	let s= "<table><tr><th>Tree Type</th><th>Density</th></tr>";
+	for (let i=0; i<treeData.length; i++) {
+		let td= treeData[i];
+		s+= "<tr><td align=left>"+td.name+"</td><td align=left>"+
+		  "<input id=\"density"+i+"\" type=\"text\" value=\"";
+		if (td.density)
+			s+= td.density.toFixed(2);
+		else
+			s+= "0";
+		s+= "\"/></td></tr>";
+	}
+	s+= "</table>";
+	document.getElementById('forestdata').innerHTML= s;
+}
 
 //	Implements the Edit menu Attach Forest feature
 let attachForest= function()
 {
-	if (!selected)
+	if (!selected || (selectedTrack.controlPoints.length>1 &&
+	  selectedTrack.type!="forest"))
+		return;
+	let treeTypes= [];
+	for (let i=0; i<treeData.length; i++) {
+		let td= treeData[i];
+		let id= "density"+i;
+		var density= parseFloat(document.getElementById(id).value);
+		if (density > 0) {
+			treeTypes.push({
+				density: density,
+				texture: td.texture,
+				scale0: td.scale0,
+				scale1: td.scale1,
+				sizew: td.sizew,
+				sizeh: td.sizeh
+			});
+		}
+	};
+	if (treeTypes.length == 0)
 		return;
 	let cp= selectedTrack.controlPoints[0];
-	var treeType= document.getElementById("treetype").value;
-	var density= document.getElementById("density").value;
-	var treeType2= document.getElementById("treetype2").value;
-	var density2= document.getElementById("density2").value;
-	var tdata= treeData[treeType];
-	let type1= {
-		density: parseFloat(density),
-		texture: tdata.texture,
-		scale0: tdata.scale0,
-		scale1: tdata.scale1,
-		sizew: tdata.sizew,
-		sizeh: tdata.sizeh
-	};
-	let type2= null;
-	if (treeType2 != treeType) {
-		var tdata= treeData[treeType2];
-		type2= {
-			density: parseFloat(density2),
-			texture: tdata.texture,
-			scale0: tdata.scale0,
-			scale1: tdata.scale1,
-			sizew: tdata.sizew,
-			sizeh: tdata.sizeh
-		};
-	}
-	if (selectedTrack.type == "forest") {
-		if (!cp.forest)
-			cp.forest= [];
-		let saveData= function(data) {
-			for (let i=0; i<cp.forest.length; i++) {
-				if (cp.forest[i].texture == data.texture) {
-					cp.forest[i]= data;
-					return;
-				}
-			}
-			cp.forest.push(data);
-		}
-		saveData(type1);
-		if (type2)
-			saveData(type2);
+	if (selectedTrack.controlPoints.length > 1) {
+		cp.forest= treeTypes;
 	} else {
 		if (!cp.forest) {
-			forest.areaw= 400;
-			forest.areah= 400;
+			treeTypes[0].areaw= 400;
+			treeTypes[0].areah= 400;
+			cp.forest= treeTypes[0];
 			alignForest(cp);
+		} else {
+			treeTypes[0].areaw= cp.forest.areaw;
+			treeTypes[0].areah= cp.forest.areah;
+			cp.forest= treeTypes[0];
 		}
-		cp.forest= type1;
-		if (type2)
-			cp.forest.type2= type2;
+		if (treeTypes.length > 1)
+			cp.forest.type2= treeTypes[1];
 	}
 	renderCanvas();
 }
@@ -4076,7 +4087,7 @@ let calcPolyForest= function(track,calcZ)
 		return null;
 	let controlPoints= track.controlPoints;
 	let n= controlPoints.length;
-	if (n<3 || !controlPoints[0].forest)
+	if (n<3 || !controlPoints[0].forest || controlPoints[0].forest.areaw)
 		return null;
 	let polygon= [];
 	let center= new THREE.Vector3();
@@ -4117,10 +4128,15 @@ let calcPolyForest= function(track,calcZ)
 		let sy= box.max.y-box.min.y;
 		for (let j=0; j<100*pop && trees.length<pop; j++) {
 			let tree= { x: box.min.x+sx*random(),
-			  y: box.min.y+sy*random() };
+			  y: box.min.y+sy*random(),
+			  size: size0+dsize*random()
+			};
+			let r= treeData.sizew/2 * tree.size;;
 //			console.log(" try "+j+" "+tree.x+" "+tree.y);
-			if (pointInPolygon(tree,polygon)) {
-				tree.size= size0 + dsize*random();
+			if (pointInPolygon({x:tree.x-r,y:tree.y},polygon) &&
+			  pointInPolygon({x:tree.x+r,y:tree.y},polygon) &&
+			  pointInPolygon({x:tree.x,y:tree.y-r},polygon) &&
+			  pointInPolygon({x:tree.x,y:tree.y+r},polygon)) {
 				if (calcZ)
 					tree.z= getElevation(
 					  tree.x,tree.y,true);

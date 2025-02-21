@@ -284,6 +284,7 @@ let setupFileDialogs= function()
 			findCenter();
 			readProjection();
 			calcTrackDBUV();
+			setupForestData();
 //			convertTrackDB();
 			renderCanvas();
 			setupMenu();
@@ -293,6 +294,7 @@ let setupFileDialogs= function()
 //			console.log('open '+this.value);
 			readData(this.value);
 			calcTrackDBUV();
+			setupForestData();
 			setupMenu();
 		});
 	document.getElementById('filesave').addEventListener('change',

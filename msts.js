@@ -1406,9 +1406,10 @@ let writeWorldFile= function(tile)
 		  model.x.toFixed(3)+" "+model.y.toFixed(3)+" "+
 		  model.z.toFixed(3)+" )\r\n",
 		  null,"utf16le");
-		let q= new THREE.Quaternion();
-		let e= new THREE.Euler(-model.ax,ay,model.az);
-		q.setFromEuler(e);
+//		let q= new THREE.Quaternion();
+//		let e= new THREE.Euler(-model.ax,ay,model.az);
+//		q.setFromEuler(e);
+		let q= qDir(-model.ax,ay,model.az);
 		fs.writeSync(fd,"\t\tQDirection ( "+
 		  q.x.toFixed(5)+" "+q.y.toFixed(5)+" "+
 		  q.z.toFixed(5)+" "+q.w.toFixed(5)+" )\r\n",
@@ -1542,15 +1543,17 @@ let writeWorldFile= function(tile)
 			  model.section.y.toFixed(3)+" "+
 			  model.section.z.toFixed(3)+" )\r\n",
 			  null,"utf16le");
-			let q= new THREE.Quaternion();
+//			let q= new THREE.Quaternion();
 //			let e= new THREE.Euler(0,
 //			  Math.PI-model.section.ay,0,
 //			  "YXZ");
 //			let e= new THREE.Euler(model.section.ax,
 //			  Math.PI-model.section.ay,model.section.az);
-			let e= new THREE.Euler(-model.section.ax,
+//			let e= new THREE.Euler(-model.section.ax,
+//			  -model.section.ay,model.section.az);
+//			q.setFromEuler(e);
+			let q= qDir(-model.section.ax,
 			  -model.section.ay,model.section.az);
-			q.setFromEuler(e);
 			fs.writeSync(fd,"\t\tQDirection ( "+
 			  q.x.toFixed(5)+" "+q.y.toFixed(5)+" "+
 			  q.z.toFixed(5)+" "+q.w.toFixed(5)+" )\r\n",
@@ -1568,10 +1571,11 @@ let writeWorldFile= function(tile)
 			  model.x.toFixed(3)+" "+model.y.toFixed(3)+" "+
 			  model.z.toFixed(3)+" )\r\n",
 			  null,"utf16le");
-			let q= new THREE.Quaternion();
-			let e= new THREE.Euler(-model.ax,-model.ay,
-			  model.az);
-			q.setFromEuler(e);
+//			let q= new THREE.Quaternion();
+//			let e= new THREE.Euler(-model.ax,-model.ay,
+//			  model.az);
+//			q.setFromEuler(e);
+			let q= qDir(-model.ax,-model.ay,model.az);
 			fs.writeSync(fd,"\t\tQDirection ( "+
 			  q.x.toFixed(5)+" "+q.y.toFixed(5)+" "+
 			  q.z.toFixed(5)+" "+q.w.toFixed(5)+" )\r\n",
@@ -1602,10 +1606,11 @@ let writeWorldFile= function(tile)
 			  model.x.toFixed(3)+" "+model.y.toFixed(3)+" "+
 			  model.z.toFixed(3)+" )\r\n",
 			  null,"utf16le");
-			let q= new THREE.Quaternion();
-			let e= new THREE.Euler(-model.ax,-model.ay,
-			  model.az);
-			q.setFromEuler(e);
+//			let q= new THREE.Quaternion();
+//			let e= new THREE.Euler(-model.ax,-model.ay,
+//			  model.az);
+//			q.setFromEuler(e);
+			let q= qDir(-model.ax,-model.ay,model.az);
 			fs.writeSync(fd,"\t\tQDirection ( "+
 			  q.x.toFixed(5)+" "+q.y.toFixed(5)+" "+
 			  q.z.toFixed(5)+" "+q.w.toFixed(5)+" )\r\n",
@@ -1651,14 +1656,15 @@ let writeWorldFile= function(tile)
 //			  " "+model.az+" "+(Math.PI-model.ay));
 //			console.log("sw angle "+model.ax+" "+model.ay+
 //			  " "+model.az+" "+(-model.ay));
-			let q= new THREE.Quaternion();
+//			let q= new THREE.Quaternion();
 //			let e= new THREE.Euler(0,Math.PI-model.ay,
 //			  0,"YXZ");
-			let e= new THREE.Euler(-model.ax,Math.PI-model.ay,
-			  model.az);
+//			let e= new THREE.Euler(-model.ax,Math.PI-model.ay,
+//			  model.az);
+//			q.setFromEuler(e);
+			let q= qDir(-model.ax,Math.PI-model.ay,model.az);
 //			let e= new THREE.Euler(-model.ax,-model.ay,
 //			  model.az);
-			q.setFromEuler(e);
 //			console.log("sw q "+q.x+" "+q.y+" "+q.z+" "+q.w);
 			fs.writeSync(fd,"\t\tQDirection ( "+
 			  q.x.toFixed(5)+" "+q.y.toFixed(5)+" "+
@@ -1683,9 +1689,10 @@ let writeWorldFile= function(tile)
 		  null,"utf16le");
 		fs.writeSync(fd,"\t\tPosition ( 0 0 0 )\r\n",
 		  null,"utf16le");
-		let q= new THREE.Quaternion();
-		let e= new THREE.Euler(0,0,0);
-		q.setFromEuler(e);
+//		let q= new THREE.Quaternion();
+//		let e= new THREE.Euler(0,0,0);
+//		q.setFromEuler(e);
+		let q= qDir(0,0,0);
 		fs.writeSync(fd,"\t\tQDirection ( "+
 		  q.x.toFixed(5)+" "+q.y.toFixed(5)+" "+
 		  q.z.toFixed(5)+" "+q.w.toFixed(5)+" )\r\n",
@@ -2324,7 +2331,7 @@ let saveToRoute= function()
 				  2048*(static.wftz-centerTZ);
 				let dir= cp.direction;
 				let angle= Math.atan2(dir.y,dir.x);
-				static.ax= -cp.cpGrade;
+				static.ax= 0;
 				static.ay= Math.PI/2-angle;
 				static.az= 0;
 				if (!cp.forest && cp.model.signal)
@@ -2347,7 +2354,9 @@ let saveToRoute= function()
 		for (let j=0; j<wirePoints.length; j++) {
 			let wp= wirePoints[j];
 			let wo= wp.wireOptions;
-			console.log("pole "+wo.poleModel+" "+wo.poleSide);
+			console.log("pole "+wo.poleModel+" "+wo.poleSide+" "+
+			  (wo.poleSide*wp.dx)+" "+(wo.poleSide*wp.dy)+" "+
+			  j+" "+wirePoints.length);
 			if (!wp.noPole && wo.poleSide)
 				addModel(wo.poleModel,wp.x,wp.y,wp.z,
 				  wo.poleSide*wp.dx,wo.poleSide*wp.dy,0);
@@ -2839,8 +2848,7 @@ let savePatchImage= function(tile,tpm,mtdata)
 				p0= p1;
 				continue;
 			}
-			let perp= new THREE.Vector2(p0.y-p1.y,p1.x-p0.x);
-			perp.normalize();
+			let perp= new CSG.Vector(p0.y-p1.y,p1.x-p0.x,0).unit();
 			context.beginPath();
 			let x= (p0.x-cu)*scale + width/2;
 			let y= height/2 - (p0.y-cv)*scale;
@@ -2878,8 +2886,7 @@ let savePatchImage= function(tile,tpm,mtdata)
 		p0= p0.clone().sub(d1);
 		p1= p1.clone().add(d1);
 		p2= p2.clone().add(d2);
-		let perp= new THREE.Vector2(p0.y-p1.y,p1.x-p0.x);
-		perp.normalize();
+		let perp= new CSG.Vector(p0.y-p1.y,p1.x-p0.x,0).unit();
 		setProfile(track1.type);
 		context.beginPath();
 		let x= (p0.x-cu)*scale + width/2;
@@ -2892,8 +2899,7 @@ let savePatchImage= function(tile,tpm,mtdata)
 		context.lineTo(x+wid*perp.x,y-wid*perp.y);
 		context.closePath();
 		context.fill();
-		perp= new THREE.Vector2(p0.y-p2.y,p2.x-p0.x);
-		perp.normalize();
+		perp= new CSG.Vector(p0.y-p2.y,p2.x-p0.x,0).unit();
 		setProfile(track2.type);
 		context.beginPath();
 		x= (p0.x-cu)*scale + width/2;
@@ -3698,8 +3704,7 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 //			console.log(" tp "+j+" "+prev+" "+p0.straight+" "+
 //			  p1.straight+" "+
 //			  tracks[i].controlPoints[0].position.z+" "+p1.z);
-			let perp= new THREE.Vector2(p0.y-p1.y,p1.x-p0.x);
-			perp.normalize();
+			let perp= new CSG.Vector(p0.y-p1.y,p1.x-p0.x,0).unit();
 			if (prev != j-1) {
 				if (polys.length > 0)
 					addEnd(true,closeEnd?endPid:0);
@@ -3782,8 +3787,7 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 		p0= p0.clone().sub(d1);
 		p1= p1.clone().add(d1);
 		p2= p2.clone().add(d2);
-		let perp= new THREE.Vector2(p0.y-p1.y,p1.x-p0.x);
-		perp.normalize();
+		let perp= new CSG.Vector(p0.y-p1.y,p1.x-p0.x,0).unit();
 		setProfile(track0.type);
 		addVerts(p0,perp.x,perp.y,0);
 		addEnd(false,0);
@@ -3792,8 +3796,7 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 		addEnd(true,0);
 		addPolys(trackPid,p0,perp);
 		saveCutCSGUnion();
-		perp= new THREE.Vector2(p0.y-p2.y,p2.x-p0.x);
-		perp.normalize();
+		perp= new CSG.Vector(p0.y-p2.y,p2.x-p0.x,0).unit();
 		setProfile(track0.type);
 		addVerts(p0,perp.x,perp.y,0);
 		addEnd(false,0);
@@ -4905,11 +4908,12 @@ let saveCrossingTrackShape= function(point1)
 		let dir2= point2.direction;
 		let angle2= Math.atan2(dir2.y,dir2.x);
 		let curve2= point2.curve;
-		let zero= new THREE.Vector2(0,0);
-		let start2=
-		  new THREE.Vector2(x2-x1,y2-y1).rotateAround(zero,-angle1);
+		let dx= x2-x1;
+		let dy= y2-y1;
+		let cs= Math.cos(-angle1);
+		let sn= Math.sin(-angle1);
 		let da= angle2-angle1;
-		data.paths.push({ start: [-start2.y,0,start2.x],
+		data.paths.push({ start: [-(sn*dx+cs*dy),0,cs*dx-sn*dy],
 		  angle: -180*da/Math.PI, moves: getCurveMoves(curve2) });
 		if (curve1.shapeID > curve2.shapeID)
 			point1.drawModel= false;
@@ -5402,9 +5406,7 @@ let makePolyForestModel= function(filename,forestData)
 	fs.writeSync(fd,"shape (\r\n",null,"utf16le");
 	fs.writeSync(fd," shape_header ( 00000000 00000000 )\r\n",
 	  null,"utf16le");
-	let size= new THREE.Vector3();
-	forestData.box.getSize(size);
-	let radius= size.length()/2;
+	let radius= forestData.box.max.minus(forestData.box.min).length()/2;
 	fs.writeSync(fd," volumes ( 1\r\n",null,"utf16le");
 	fs.writeSync(fd,"  vol_sphere (\r\n",null,"utf16le");
 	fs.writeSync(fd,"   vector ( 0 0 0 ) "+radius.toFixed(3)+"\r\n",
@@ -5635,4 +5637,31 @@ let readForestsDat= function()
 	}
 //	console.log("tree types "+treeTypes.length);
 	return treeTypes;
+}
+
+//	returns QDirection given Euler angles (xyz order)
+let qDir= function(x,y,z)
+{
+	let cx= Math.cos(x/2);
+	let cy= Math.cos(y/2);
+	let cz= Math.cos(z/2);
+	let sx= Math.sin(x/2);
+	let sy= Math.sin(y/2);
+	let sz= Math.sin(z/2);
+	let result= {
+		x: sx*cy*cz + cx*sy*sz,
+		y: cx*sy*cz - sx*cy*sz,
+		z: cx*cy*sz + sx*sy*cz,
+		w: cx*cy*cz - sx*sy*sz
+	};
+//	let q= new THREE.Quaternion();
+//	let e= new THREE.Euler(x,y,z);
+//	q.setFromEuler(e);
+//	if (result.x!=q.x || result.y!=q.y || result.z!=q.z || result.w!=q.w) {
+//		console.error("bad qdir "+x+" "+y+" "+z);
+//		console.error("bad qdir "+q.x+" "+q.y+" "+q.z+" "+q.w);
+//		console.error("bad qdir "+result.x+" "+result.y+" "+
+//		  result.z+" "+result.w);
+//	}
+	return result;
 }

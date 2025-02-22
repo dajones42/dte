@@ -23,7 +23,7 @@ THE SOFTWARE.
 //	Code for Dynamic Track Editor
 //
 
-const THREE= require('three');
+//const THREE= require('three');
 //const proj4= require('proj4');
 
 //	initiallizes menu, keyboard events and displays
@@ -32,13 +32,13 @@ window.onload= function() {
 	setupFileDialogs();
 	window.addEventListener('keydown',function(e) {
 		if (e.keyCode == 37) {
-			cameraLeft();
+			;//cameraLeft();
 		} else if (e.keyCode == 38) {
 			scale*= 1.4;
 			renderCanvas();
 			e.preventDefault();
 		} else if (e.keyCode == 39) {
-			cameraRight();
+			;//cameraRight();
 		} else if (e.keyCode == 40) {
 			scale/= 1.4;
 			renderCanvas();
@@ -274,7 +274,7 @@ let convertTrackDB= function()
 		let bad= false;
 		for (let j=0; j<node.sections.length; j++) {
 			let section= node.sections[j];
-			let cp= { position: new THREE.Vector3(section.u,
+			let cp= { position: new CSG.Vector(section.u,
 			  section.v,section.y) };
 			let straight= false;
 			if (!trackDB.tSection.sections[section.sectionID]) {
@@ -290,8 +290,8 @@ let convertTrackDB= function()
 				  section.sectionID].length>0;
 			}
 			let a= Math.PI/2-section.ay;
-			cp.direction= new THREE.Vector2(Math.cos(a),
-			  Math.sin(a)).normalize();
+			cp.direction= new CSG.Vector(Math.cos(a),
+			  Math.sin(a),0);
 			cp.straight= straight;
 			if (!straight && !prevStraight)
 				cp.forcedDirection= true;
@@ -300,11 +300,11 @@ let convertTrackDB= function()
 				track.controlPoints.push(cp);
 		}
 		if (n2 == 0) {
-			let cp= { position: new THREE.Vector3(node2.u,
+			let cp= { position: new CSG.Vector(node2.u,
 			  node2.v,node2.y) };
 			let a= Math.PI/2-node2.ay;
-			cp.direction= new THREE.Vector2(Math.cos(a),
-			  Math.sin(a)).normalize();
+			cp.direction= new CSG.Vector(Math.cos(a),
+			  Math.sin(a),0).unit();
 			track.controlPoints.push(cp);
 		}
 		if (bad)
@@ -329,7 +329,7 @@ let renderCanvas= function()
 {
 	renderMap();
 	renderProfile();
-	render3D();
+	//render3D();
 	if (selectedTrack && selectedTrack.controlPoints.length>1)
 		printTrack(selectedTrack.flatCurves,
 		  selectedTrack.dynTrackCurves);
@@ -356,12 +356,17 @@ let findTrackDirection= function(node)
 	} else {
 		other= trackDB.nodes[vNode.pins[1].node];
 	}
-	node.dir= new THREE.Vector3(node.u-other.u,node.v-other.v,
-	  node.y-other.y);
-	node.dir.normalize();
-	if (angle)
-		node.dir.applyAxisAngle(new THREE.Vector3(0,0,1),
-		  .5*angle*Math.PI/180);
+	node.dir= new CSG.Vector(node.u-other.u,node.v-other.v,
+	  node.y-other.y).unit();
+	if (angle) {
+		angle= .5*angle*Math.PI/180;
+		let cs= Math.cos(angle);
+		let sn= Math.sin(angle);
+		let dx= node.dir.x;
+		let dy= node.dir.y;
+		node.dir.x= cs*dx - sn*dy;
+		node.dir.y= sn*dx + cs*dy;
+	}
 }
 
 //	Calculates the curves needed to implement all tracks.
@@ -402,9 +407,9 @@ let calcFlatTrack= function(track)
 	for (let i=0; i<controlPoints.length; i++) {
 		let cp= controlPoints[i];
 		points.push({
-		  position: new THREE.Vector2(cp.position.x,cp.position.y),
-		  direction: new THREE.Vector2(cp.direction.x,cp.direction.y).
-		   normalize(),
+		  position: new CSG.Vector(cp.position.x,cp.position.y,0),
+		  direction: new CSG.Vector(cp.direction.x,cp.direction.y,0).
+		   unit(),
 		  controlPoint: cp,
 		  straight: cp.straight
 		});
@@ -494,34 +499,32 @@ let calcCurves= function(points)
 //	alignment problem.
 let calcCurve= function(p1,p2,d1,d2)
 {
-	p1= new THREE.Vector2(p1.x,p1.y);
-	p2= new THREE.Vector2(p2.x,p2.y);
-	d1= new THREE.Vector2(d1.x,d1.y);
-	d1.normalize();
-	d2= new THREE.Vector2(d2.x,d2.y);
-	d2.normalize();
-	let dp= p2.clone().sub(p1);
-	dp.normalize();
+	p1= new CSG.Vector(p1.x,p1.y,0);
+	p2= new CSG.Vector(p2.x,p2.y,0);
+	d1= new CSG.Vector(d1.x,d1.y,0).unit();
+	d2= new CSG.Vector(d2.x,d2.y,0).unit();
+	let dp= p2.minus(p1).unit();
 	let dot= d1.dot(d2);
-	let pi= segSegInt(p1,p1.clone().add(d1),p2,p2.clone().add(d2));
+	let pi= segSegInt(p1,p1.plus(d1),p2,p2.plus(d2));
+	pi.z= 0;
 	if (pi.d==0 || dot<=-.999999 || dot>=.999999) {
 		// colinear (ok) or parallel directions (not ok)
-		return { angle: 0, radius: 0, len1: p1.distanceTo(p2),
+		return { angle: 0, radius: 0, len1: p1.minus(p2).length(),
 		  len2: 0, bad: (d1.dot(dp)<.999999 || d2.dot(dp)<.999999) };
 	}
 	let angle= Math.acos(dot);
 	if (pi.s<=0 || pi.t>=0) {
 		// intersection pi not between p1 and p2
 		return { angle: angle, radius: 0, len1: 0,
-		  len2: p1.distanceTo(p2), bad: true };
+		  len2: p1.minus(p2).length(), bad: true };
 	}
-	let t1= p1.distanceTo(pi);
-	let t2= p2.distanceTo(pi);
+	let t1= p1.minus(pi).length();
+	let t2= p2.minus(pi).length();
 	let t= t1>t2 ? t2 : t1;
 	let radius= t/Math.tan(angle/2);
 	if (radius < 1)
 		radius= 0;
-	if (d1.cross(d2) < 0)
+	if (d1.cross(d2).z < 0)
 		angle= -angle;
 	return { angle: angle, radius: radius, len1: t1>t2 ? t1-t2 : 0,
 	  len2: t1>t2 ? 0 : t2-t1 };
@@ -543,14 +546,14 @@ let equalizeCurveRadius= function()
 	let cp2= selectedTrack.controlPoints[i+1];
 	if (cp0.straight)
 		return;
-	let lo= new THREE.Vector3(selected.position.x-cp0.position.x,
-	  selected.position.y-cp0.position.y,0).normalize();
-	let hi= new THREE.Vector3(cp2.position.x-selected.position.x,
-	  cp2.position.y-selected.position.y,0).normalize();
+	let lo= new CSG.Vector(selected.position.x-cp0.position.x,
+	  selected.position.y-cp0.position.y,0).unit();
+	let hi= new CSG.Vector(cp2.position.x-selected.position.x,
+	  cp2.position.y-selected.position.y,0).unit();
 	if (lo.dot(hi) <= 0)
 		return;
 	let objective= function(x) {
-		let dir= lo.clone().lerp(hi,x);
+		let dir= lo.lerp(hi,x);
 		console.log("eqrad "+x+" "+dir.x+" "+dir.y);
 		selected.direction= dir;
 		let c1= calcCurve(cp0.position,selected.position,cp0.direction,
@@ -569,13 +572,13 @@ let equalizeCurveRadius= function()
 		return deg;
 	}
 	let x= gsOpt(.01,.99,objective,1e-3);
-	selected.direction= lo.clone().lerp(hi,x);
+	selected.direction= lo.lerp(hi,x);
 	selected.forcedDirection= true;
 	calcTrack();
 	renderCanvas();
 	return;
 	for (let i=0; i<12; i++) {
-		let dir= lo.clone().add(hi).normalize();
+		let dir= lo.plus(hi).unit();
 		selected.direction= dir;
 		let c1= calcCurve(cp0.position,selected.position,cp0.direction,
 		  dir);
@@ -600,7 +603,7 @@ let equalizeCurveRadius= function()
 		else
 			hi= dir;
 	}
-	selected.direction= lo.clone().add(hi).normalize();
+	selected.direction= lo.plus(hi).unit();
 	selected.forcedDirection= true;
 	calcTrack();
 	renderCanvas();
@@ -614,14 +617,14 @@ let optRadius= function(p1,p2,perp1,perp2)
 {
 //	console.log("p1 "+p1.x+" "+p1.y+" "+perp1.x+" "+perp1.y);
 //	console.log("p2 "+p2.x+" "+p2.y+" "+perp2.x+" "+perp2.y);
-	let length= p1.distanceTo(p2);
+	let length= p1.minus(p2).length();
 	let lo= length/4;
 	let hi= 10*length;
 	for (let i=0; i<15; i++) {
 		let r= .5*(hi+lo);
-		let c1= p1.clone().add(perp1.clone().multiplyScalar(r));
-		let c2= p2.clone().add(perp2.clone().multiplyScalar(r));
-		let r1= c1.distanceTo(c2);
+		let c1= p1.plus(perp1.times(r));
+		let c2= p2.plus(perp2.times(r));
+		let r1= c1.minus(c2).length();
 //		console.log(" r "+i+" "+r1+" "+r+" "+lo+" "+hi);
 		if (r1 < 2*r)
 			hi= r;
@@ -646,12 +649,11 @@ let addSCurvePoints= function(pointsIn)
 		let p2= pointsIn[i+1].position;
 		let d1= pointsIn[i].direction;
 		let d2= pointsIn[i+1].direction;
-		let dp= p2.clone().sub(p1);
-		dp.normalize();
+		let dp= p2.minus(p1).unit();
 		let dot1= dp.dot(d1);
 		let dot2= dp.dot(d2);
-		let cross1= d1.cross(dp);
-		let cross2= dp.cross(d2);
+		let cross1= d1.cross(dp).z;
+		let cross2= dp.cross(d2).z;
 //		console.log("p1 "+p1.x+" "+p1.y+" "+d1.x+" "+d1.y);
 //		console.log("p2 "+p2.x+" "+p2.y+" "+d2.x+" "+d2.y);
 //		console.log("dot1 "+dot1+" "+cross1);
@@ -659,48 +661,48 @@ let addSCurvePoints= function(pointsIn)
 		if (dot1>0 && dot2>0 &&
 		  ((cross1>0 && cross2<0) || (cross1<0 && cross2>0))) {
 			// simple S curve
-			let perp1= cross1>0 ? new THREE.Vector2(-d1.y,d1.x) :
-			  new THREE.Vector2(d1.y,-d1.x);
-			let perp2= cross2>0 ? new THREE.Vector2(-d2.y,d2.x) :
-			  new THREE.Vector2(d2.y,-d2.x);
+			let perp1= cross1>0 ? new CSG.Vector(-d1.y,d1.x,0) :
+			  new CSG.Vector(d1.y,-d1.x,0);
+			let perp2= cross2>0 ? new CSG.Vector(-d2.y,d2.x,0) :
+			  new CSG.Vector(d2.y,-d2.x,0);
 			let r= optRadius(p1,p2,perp1,perp2);
-			let c1= p1.clone().add(perp1.clone().multiplyScalar(r));
-			let c2= p2.clone().add(perp2.clone().multiplyScalar(r));
-			let c= c2.add(c1).multiplyScalar(.5);
+			let c1= p1.plus(perp1.times(r));
+			let c2= p2.plus(perp2.times(r));
+			let c= c2.plus(c1).times(.5);
 			let dc= cross1>0 ?
-			  new THREE.Vector2(c1.y-c.y,c.x-c1.x) :
-			  new THREE.Vector2(c.y-c1.y,c1.x-c.x);
-			dc.normalize();
+			  new CSG.Vector(c1.y-c.y,c.x-c1.x,0) :
+			  new CSG.Vector(c.y-c1.y,c1.x-c.x,0);
+			dc= dc.unit();
 			pointsOut.push({ position: c, direction: dc });
 		} else if ((dot1>0 && dot2<0) || (dot1<0 && dot2>0)) {
 			// return loop S curve
 			let perp1= (dot1<0 && cross2>0) ||
 			  (dot1>0 && cross1<0) ?
-			  new THREE.Vector2(-d1.y,d1.x) :
-			  new THREE.Vector2(d1.y,-d1.x);
+			  new CSG.Vector(-d1.y,d1.x,0) :
+			  new CSG.Vector(d1.y,-d1.x,0);
 			let perp2= (dot2<0 && cross1>0) ||
 			  (dot2>0 && cross2<0) ?
-			  new THREE.Vector2(-d2.y,d2.x) :
-			  new THREE.Vector2(d2.y,-d2.x);
+			  new CSG.Vector(-d2.y,d2.x,0) :
+			  new CSG.Vector(d2.y,-d2.x,0);
 			let r= optRadius(p1,p2,perp1,perp2);
-			let c1= p1.clone().add(perp1.clone().multiplyScalar(r));
-			let c2= p2.clone().add(perp2.clone().multiplyScalar(r));
-			let c= c2.add(c1).multiplyScalar(.5);
+			let c1= p1.plus(perp1.times(r));
+			let c2= p2.plus(perp2.times(r));
+			let c= c2.plus(c1).times(.5);
 			let dc= (dot1<0 && cross2>0) ||
 			  (dot1>0 && cross1<0) ?
-			  new THREE.Vector2(c1.y-c.y,c.x-c1.x) :
-			  new THREE.Vector2(c.y-c1.y,c1.x-c.x);
-			dc.normalize();
+			  new CSG.Vector(c1.y-c.y,c.x-c1.x,0) :
+			  new CSG.Vector(c.y-c1.y,c1.x-c.x,0);
+			dc= dc.unit();
 			pointsOut.push({ position: c, direction: dc });
 //			console.log("add s "+c.x+" "+c.y+" "+dc.x+" "+dc.y);
 		} else if (dot1<0 && dot2<0 &&
 		  ((cross1<0 && cross2>0) || (cross1>0 && cross2<0))) {
 			// cross over S curve
-			let c= p1.clone().add(p2).multiplyScalar(.5);
+			let c= p1.plus(p2).times(.5);
 			let dc= cross1>0 ?
-			  new THREE.Vector2(-dp.y,dp.x) :
-			  new THREE.Vector2(dp.y,-dp.x);
-			dc.normalize();
+			  new CSG.Vector(-dp.y,dp.x,0) :
+			  new CSG.Vector(dp.y,-dp.x,0);
+			dc= dc.unit();
 			pointsOut.push({ position: c, direction: dc });
 //			console.log("add s "+c.x+" "+c.y+" "+dc.x+" "+dc.y);
 		}
@@ -723,23 +725,21 @@ let addLongCurvePoints= function(pointsIn)
 		let p2= pointsIn[i+1].position;
 		let d1= pointsIn[i].direction;
 		let d2= pointsIn[i+1].direction;
-		let dp= p2.clone().sub(p1);
-		dp.normalize();
+		let dp= p2.minus(p1).unit();
 		let dot1= dp.dot(d1);
 		let dot2= dp.dot(d2);
-		let cross1= d1.cross(dp);
-		let cross2= dp.cross(d2);
+		let cross1= d1.cross(dp).z;
+		let cross2= dp.cross(d2).z;
 //		console.log("p1 "+p1.x+" "+p1.y+" "+d1.x+" "+d1.y);
 //		console.log("p2 "+p2.x+" "+p2.y+" "+d2.x+" "+d2.y);
 //		console.log("dot1 "+dot1+" "+cross1);
 //		console.log("dot2 "+dot2+" "+cross2);
 		if (dot1<=0 && dot2<=0) {
-			let pi= segSegInt(p1,p1.clone().add(d1),
-			  p2,p2.clone().add(d2));
-			let offset= p1.distanceTo(p2);
+			let pi= segSegInt(p1,p1.plus(d1),p2,p2.plus(d2));
+			let offset= p1.minus(p2).length();
 			if (pi.d != 0) {
-				let t1= p1.distanceTo(pi);
-				let t2= p2.distanceTo(pi);
+				let t1= p1.minus(pi).length();
+				let t2= p2.minus(pi).length();
 				let t= t1>t2 ? t1 : t2;
 				let angle= Math.acos(d1.dot(d2));
 //				console.log("angle "+angle+" "+
@@ -749,10 +749,9 @@ let addLongCurvePoints= function(pointsIn)
 				offset= radius*(1+Math.cos(angle/2));
 			}
 			let perp= cross1<0 ?
-			  new THREE.Vector2(-dp.y,dp.x) :
-			  new THREE.Vector2(dp.y,-dp.x);
-			let p= p1.clone().add(p2).multiplyScalar(.5).add(
-			  perp.multiplyScalar(offset));
+			  new CSG.Vector(-dp.y,dp.x,0) :
+			  new CSG.Vector(dp.y,-dp.x,0);
+			let p= p1.plus(p2).times(.5).plus(perp.times(offset));
 			pointsOut.push({ position: p, direction: dp });
 //			console.log("add l "+p.x+" "+p.y+" "+dp.x+" "+dp.y);
 		}
@@ -781,11 +780,11 @@ let addExtraPoints= function(pointsIn,curves)
 			let m= Math.ceil(c.len1/100);
 			for (let j=0; j<m; j++) {
 				pointsOut[pointsOut.length-1].straight= true;
-				p1.add(dir.clone().multiplyScalar(c.len1/m));
+				p1= p1.plus(dir.times(c.len1/m));
 //			for (let sum=0; sum<c.len1; sum+=100) {
 //				pointsOut[pointsOut.length-1].straight= true;
 //				let len= c.len1-sum>=100?100:c.len1-sum;
-//				p1.add(dir.clone().multiplyScalar(len));
+//				p1= p1.plus(dir.times(len));
 				pointsOut.push({
 					position: p1.clone(),
 					direction: dir.clone()
@@ -795,7 +794,7 @@ let addExtraPoints= function(pointsIn,curves)
 			}
 		}
 		if (c.radius > 0) {
-			let perp= new THREE.Vector2(-dir.y,dir.x);
+			let perp= new CSG.Vector(-dir.y,dir.x,0);
 			let m= Math.ceil(Math.abs(c.angle/10)*180/Math.PI);
 			let angle= c.angle/m;
 			let t= Math.abs(c.radius*Math.tan(angle/2));
@@ -803,31 +802,31 @@ let addExtraPoints= function(pointsIn,curves)
 			let cs= 1;
 			let sn= 0;
 			for (let j=0; j<m; j++) {
-				p1.add(dir.clone().multiplyScalar(t*cs));
-				p1.add(perp.clone().multiplyScalar(t*sn));
+				p1= p1.plus(dir.times(t*cs));
+				p1= p1.plus(perp.times(t*sn));
 				h+= angle;
 				cs= Math.cos(h);
 				sn= Math.sin(h);
-				p1.add(dir.clone().multiplyScalar(t*cs));
-				p1.add(perp.clone().multiplyScalar(t*sn));
+				p1= p1.plus(dir.times(t*cs));
+				p1= p1.plus(perp.times(t*sn));
 				pointsOut.push({
 					position: p1.clone(),
-					direction: new THREE.Vector2(
+					direction: new CSG.Vector(
 					  dir.x*cs - dir.y*sn,
-					  dir.y*cs + dir.x*sn)
+					  dir.y*cs + dir.x*sn,0)
 				});
 //				console.log("add ec "+p1.x+" "+p1.y+" "+
 //				  (dir.x*cs-dir.y*sn)+" "+
 //				  (dir.y*cs+dir.x*sn));
 			}
-			dir= new THREE.Vector2(dir.x*cs - dir.y*sn,
-			  dir.y*cs + dir.x*sn);
+			dir= new CSG.Vector(dir.x*cs - dir.y*sn,
+			  dir.y*cs + dir.x*sn,0);
 		}
 		if (c.len2 > 0) {
 			let m= Math.ceil(c.len2/100);
 			for (let j=0; j<m; j++) {
 				pointsOut[pointsOut.length-1].straight= true;
-				p1.add(dir.clone().multiplyScalar(c.len2/m));
+				p1= p1.plus(dir.times(c.len2/m));
 				pointsOut.push({
 					position: p1.clone(),
 					direction: dir.clone()
@@ -862,14 +861,14 @@ let makeTrackPoints= function(points,curves)
 		let dir= p.direction;
 		let c= curves[i];
 		if (c.len1 > .01) {
-			p1.add(dir.clone().multiplyScalar(c.len1));
+			p1= p1.plus(dir.times(c.len1));
 			let p= p1.clone();
 			tPoints.push(p);
 			prev.straight= c.bad ? 2 : 1;
 			prev= p;
 		}
 		if (c.radius > 0) {
-			let perp= new THREE.Vector2(-dir.y,dir.x);
+			let perp= new CSG.Vector(-dir.y,dir.x,0);
 			let m= Math.ceil(Math.abs(c.angle)*180/Math.PI/2);
 			let angle= c.angle/m;
 			let t= Math.abs(c.radius*Math.tan(angle/2));
@@ -879,13 +878,13 @@ let makeTrackPoints= function(points,curves)
 			let cs= 1;
 			let sn= 0;
 			for (let i=0; i<m; i++) {
-				p1.add(dir.clone().multiplyScalar(t*cs));
-				p1.add(perp.clone().multiplyScalar(t*sn));
+				p1= p1.plus(dir.times(t*cs));
+				p1= p1.plus(perp.times(t*sn));
 				h+= angle;
 				cs= Math.cos(h);
 				sn= Math.sin(h);
-				p1.add(dir.clone().multiplyScalar(t*cs));
-				p1.add(perp.clone().multiplyScalar(t*sn));
+				p1= p1.plus(dir.times(t*cs));
+				p1= p1.plus(perp.times(t*sn));
 				let p= p1.clone();
 				tPoints.push(p);
 				prev.straight= 0;
@@ -895,7 +894,7 @@ let makeTrackPoints= function(points,curves)
 		if (c.len2 > .01) {
 			let p2= points[i+1].position.clone();
 			let dir= points[i+1].direction;
-			p2.sub(dir.clone().multiplyScalar(c.len2));
+			p2= p2.minus(dir.times(c.len2));
 			tPoints.push(p2);
 			prev.straight= c.bad ? 2 : 1;
 			prev= p2;
@@ -920,7 +919,7 @@ let calcDirection= function(track)
 	if (controlPoints.length == 1) {
 		let cp= controlPoints[0];
 		if (!cp.forcedDirection)
-			cp.direction= new THREE.Vector3(1,0,0);
+			cp.direction= new CSG.Vector(1,0,0);
 		return;
 	}
 	for (let i=0; i<controlPoints.length; i++) {
@@ -929,15 +928,15 @@ let calcDirection= function(track)
 			prevStraight= cp.straight;
 			continue;
 		}
-		cp.direction= new THREE.Vector3(0,0,0);
+		let dir= new CSG.Vector(0,0,0);
 		if (i > 0 && !cp.straight)
-			cp.direction.add(cp.position.clone().sub(
-			  controlPoints[i-1].position).normalize());
+			dir= dir.plus(cp.position.minus(
+			  controlPoints[i-1].position).unit());
 		if (i < controlPoints.length-1 &&
 		  (cp.straight || !prevStraight))
-			cp.direction.add(controlPoints[i+1].position.clone().
-			  sub(cp.position).normalize());
-		cp.direction.normalize();
+			dir= dir.plus(controlPoints[i+1].position.
+			  minus(cp.position).unit());
+		cp.direction= dir.unit();
 		prevStraight= cp.straight;
 	}
 	let n= controlPoints.length;
@@ -945,27 +944,29 @@ let calcDirection= function(track)
 	  !controlPoints[0].straight && !controlPoints[0].forcedDirection) {
 		let p0= controlPoints[0];
 		let p1= controlPoints[1];
-		let d0= new THREE.Vector2(p0.direction.x,p0.direction.y);
-		let d1= new THREE.Vector2(p1.direction.x,p1.direction.y);
+		let d0= new CSG.Vector(p0.direction.x,p0.direction.y,0);
+		let d1= new CSG.Vector(p1.direction.x,p1.direction.y,0);
 		let angle= Math.acos(d0.dot(d1));
-		if (d0.cross(d1) > 0)
+		if (d0.cross(d1).z > 0)
 			angle= -angle;
-		d0.rotateAround(new THREE.Vector2(0,0),angle);
-		p0.direction.x= d0.x;
-		p0.direction.y= d0.y;
+		let cs= Math.cos(angle);
+		let sn= Math.sin(angle);
+		p0.direction.x= cs*d0.x - sn*d0.y;
+		p0.direction.y= sn*d0.x + cs*d0.y;
 	}
 	if (n>2 && !controlPoints[n-1].sw &&
 	  !controlPoints[n-2].straight && !controlPoints[n-1].forcedDirection) {
 		let p1= controlPoints[n-2];
 		let p2= controlPoints[n-1];
-		let d1= new THREE.Vector2(p1.direction.x,p1.direction.y);
-		let d2= new THREE.Vector2(p2.direction.x,p2.direction.y);
+		let d1= new CSG.Vector(p1.direction.x,p1.direction.y,0);
+		let d2= new CSG.Vector(p2.direction.x,p2.direction.y,0);
 		let angle= Math.acos(d2.dot(d1));
-		if (d2.cross(d1) > 0)
+		if (d2.cross(d1).z > 0)
 			angle= -angle;
-		d2.rotateAround(new THREE.Vector2(0,0),angle);
-		p2.direction.x= d2.x;
-		p2.direction.y= d2.y;
+		let cs= Math.cos(angle);
+		let sn= Math.sin(angle);
+		p2.direction.x= cs*d2.x - sn*d2.y;
+		p2.direction.y= sn*d2.x + cs*d2.y;
 	}
 }
 
@@ -982,7 +983,7 @@ let addControlPoint= function(x,y)
 	let z= getElevation(x,y,true);
 	if (z <= 0)
 		z= selected ? selected.position.z : 0;
-	let cp= { position: new THREE.Vector3(x,y,z),
+	let cp= { position: new CSG.Vector(x,y,z),
 	  endNode: findEndNode(x,y) };
 	if (cp.endNode) {
 		cp.position.x= cp.endNode.u;
@@ -994,7 +995,7 @@ let addControlPoint= function(x,y)
 	}
 	if (!selected) {
 		controlPoints.push(cp);
-		cp.direction= new THREE.Vector3(1,0,0);
+		cp.direction= new CSG.Vector(1,0,0);
 		cp.forcedDirection= true;
 	} else {
 		let i= controlPoints.indexOf(selected);
@@ -1005,14 +1006,14 @@ let addControlPoint= function(x,y)
 		} else if (!selected.direction || i==controlPoints.length-1) {
 			controlPoints.push(cp);
 		} else {
-			let dp= cp.position.clone().sub(selected.position);
+			let dp= cp.position.minus(selected.position);
 			let dot= dp.dot(selected.direction);
 			if (i==0 && dot<0) {
 				controlPoints.unshift(cp);
 			} else if (i==controlPoints.length-1 && dot>0) {
 				controlPoints.push(cp);
 				if (cp.endNode)
-					cp.direction.negate();
+					cp.direction= cp.direction.negated();
 			} else if (dot < 0) {
 				controlPoints.splice(i,0,cp);
 			} else {
@@ -1252,45 +1253,45 @@ let alignSwitch= function()
 	// angle is the angle of the switch relative to fp0 line.
 	// offsets is point offset relative to fp0.
 	let moveToInt= function(fp0,fp1,angle,offsets,pointAngle) {
-		let dp= new THREE.Vector2(
+		let dp= new CSG.Vector(
 		  sw.points[0].position.x-fp0.position.x,
-		  sw.points[0].position.y-fp0.position.y);
-		dp.normalize();
-		let d1= new THREE.Vector2(fp0.direction.x,fp0.direction.y);
-		let d2= new THREE.Vector2(fp1.direction.x,fp1.direction.y);
+		  sw.points[0].position.y-fp0.position.y,0).unit();
+		let d1= new CSG.Vector(fp0.direction.x,fp0.direction.y,0);
+		let d2= new CSG.Vector(fp1.direction.x,fp1.direction.y,0);
 		let cs= Math.cos(angle);
 		let sn= Math.sin(angle);
 //		console.log("movetoint "+d1.x+" "+d1.y+" "+dp.x+" "+dp.y+" "+
 //		  d1.dot(dp)+" "+angle+" "+pointAngle);
 		if (fp0.forcedDirection) {
 			if (d1.dot(dp) < 0)
-				d1.negate();
-			d1.normalize();
-			d2= new THREE.Vector2(cs*d1.x-sn*d1.y,cs*d1.y+sn*d1.x);
-			d2.normalize();
+				d1= d1.negated();
+			d1= d1.unit();
+			d2= new CSG.Vector(cs*d1.x-sn*d1.y,cs*d1.y+sn*d1.x,0);
+			d2= d2.unit();
 		} else {
 			if (d2.dot(dp) < 0)
-				d2.negate();
-			d2.normalize();
-			d1= new THREE.Vector2(cs*d2.x+sn*d2.y,cs*d2.y-sn*d2.x);
-			d1.normalize();
+				d2= d2.negated();
+			d2= d2.unit();
+			d1= new CSG.Vector(cs*d2.x+sn*d2.y,cs*d2.y-sn*d2.x,0);
+			d1= d1.unit();
 		}
 //		console.log("movetoint "+d1.x+" "+d1.y+" "+
 //		  angle+" "+d2.x+" "+d2.y);
-		let p1= new THREE.Vector2(fp0.position.x,fp0.position.y);
-		let p2= new THREE.Vector2(fp1.position.x,fp1.position.y);
-		let pi= segSegInt(p1,p1.clone().add(d1),p2,p2.clone().add(d2));
-		let p= new THREE.Vector2(pi.x,pi.y);
+		let p1= new CSG.Vector(fp0.position.x,fp0.position.y,0);
+		let p2= new CSG.Vector(fp1.position.x,fp1.position.y,0);
+		let pi= segSegInt(p1,p1.plus(d1),p2,p2.plus(d2));
+		let p= new CSG.Vector(pi.x,pi.y,0);
 		cs= Math.cos(angle);
 		sn= Math.sin(angle);
 		let offset= offsets.x-offsets.y*cs/sn;
 		if (pointAngle) {
 			let cs= Math.cos(-pointAngle);
 			let sn= Math.sin(-pointAngle);
-			d1= new THREE.Vector2(cs*d1.x-sn*d1.y,cs*d1.y+sn*d1.x);
-			d1.normalize();
+			d1= new CSG.Vector(cs*d1.x-sn*d1.y,cs*d1.y+sn*d1.x,0);
+			d1= d1.unit();
 		}
-		p.sub(d1.multiplyScalar(offset));
+		d1= d1.times(offset);
+		p= p.minus(d1);
 		sw.points[0].position.x= p.x;
 		sw.points[0].position.y= p.y;
 		sw.angle= Math.atan2(d1.y,d1.x);
@@ -1455,7 +1456,7 @@ let moveAway= function()
 	let dist= parseFloat(document.getElementById("trackspacing").value);
 	if (!selected)
 		return;
-	let p= new THREE.Vector2(selected.position.x,selected.position.y);
+	let p= new CSG.Vector(selected.position.x,selected.position.y,0);
 //	console.log("moveaway "+p.x+" "+p.y+" "+dist);
 	for (let i=0; i<tracks.length; i++) {
 		let track= tracks[i];
@@ -1544,8 +1545,8 @@ let calcDistance= function(track,points,useCurves)
 				dist+= c.radius*Math.abs(c.angle);
 		} else if (!useCurves) {
 			for (; j<p.trackPoint; j++) {
-				dist+= trackPoints[j].distanceTo(
-				  trackPoints[j+1]);
+				dist+= trackPoints[j].minus(
+				  trackPoints[j+1]).length();
 //				if (track == selectedTrack)
 //					console.log(" "+j+" "+dist);
 			}
@@ -1581,9 +1582,8 @@ let makeGroundPoints= function(track,orig)
 	let step= 8;
 	for (let i=1; i<trackPoints.length; i++) {
 		let p1= trackPoints[i];
-		let d= p1.distanceTo(p0);
-		let perp= new THREE.Vector2(p1.y-p0.y,p1.x-p0.x);
-		perp.normalize();
+		let d= p1.minus(p0).length();
+		let perp= new CSG.Vector(p1.y-p0.y,p1.x-p0.x,0).unit();
 		let dx= 5*perp.x;
 		let dy= 5*perp.y;
 		while (dist+step <= dist0+d) {
@@ -2059,7 +2059,7 @@ let readCSV= function(filename)
 		let lng= parseFloat(fields[1]);
 		let uv= ll2uv(lat,lng);
 		track.controlPoints.push({
-		  position: new THREE.Vector3(uv.u,uv.v,
+		  position: new CSG.Vector(uv.u,uv.v,
 		   getElevation(uv.u,uv.v,true))
 		});
 		if (minU > uv.u)
@@ -2155,20 +2155,18 @@ let reverseTrack= function(track)
 			cp.straight= false;
 		if (cp.straight)
 			cp.forcedDirection= false;
-		cp.direction.negate();
+		cp.direction= cp.direction.negated();
 	}
 }
 
 //	Adds a switch connecting mainTrack to rTrack.
 let addSwitch= function(point,mainTrack,rPoint,rTrack)
 {
-	let pd= new THREE.Vector2(point.direction.x,point.direction.y);
-	let rd= new THREE.Vector2(rPoint.position.x-point.position.x,
-	  rPoint.position.y-point.position.y);
-	pd.normalize();
-	rd.normalize();
+	let pd= new CSG.Vector(point.direction.x,point.direction.y,0).unit();
+	let rd= new CSG.Vector(rPoint.position.x-point.position.x,
+	  rPoint.position.y-point.position.y,0).unit();
 	let dot= pd.dot(rd);
-	let cross= pd.cross(rd);
+	let cross= pd.cross(rd).z;
 	let nTrack= addTrack();
 	let pi= mainTrack.controlPoints.indexOf(point);
 	let n= mainTrack.controlPoints.length;
@@ -2201,8 +2199,8 @@ let addSwitch= function(point,mainTrack,rPoint,rTrack)
 		nTrack.controlPoints.unshift(p1);
 		rTrack.controlPoints.unshift(p2);
 		sw.offsets= [
-		  new THREE.Vector3(40,0,0),
-		  new THREE.Vector3(1.51059+r*Math.sin(a),-r*(1-Math.cos(a)),0)
+		  new CSG.Vector(40,0,0),
+		  new CSG.Vector(1.51059+r*Math.sin(a),-r*(1-Math.cos(a)),0)
 		];
 		sw.angles= [ 0, -a ];
 		sw.shapeID= 216;
@@ -2210,8 +2208,8 @@ let addSwitch= function(point,mainTrack,rPoint,rTrack)
 		nTrack.controlPoints.unshift(p2);
 		rTrack.controlPoints.unshift(p1);
 		sw.offsets= [
-		  new THREE.Vector3(1.51059+r*Math.sin(a),r*(1-Math.cos(a)),0),
-		  new THREE.Vector3(40,0,0)
+		  new CSG.Vector(1.51059+r*Math.sin(a),r*(1-Math.cos(a)),0),
+		  new CSG.Vector(40,0,0)
 		];
 		sw.angles= [ a, 0 ];
 		sw.shapeID= 218;
@@ -2231,7 +2229,7 @@ let updateSwitch= function(sw,grade,keepDir)
 //	if (p0.extSwitchPoint)
 //	 console.log("updatesw "+sw.angle+" "+cs+" "+sn+" "+grade+" "+csg);
 	if (!keepDir) {
-		p0.direction= new THREE.Vector3(-cs,-sn,0);
+		p0.direction= new CSG.Vector(-cs,-sn,0);
 		p0.forcedDirection= 1;
 	}
 	if (!sw.pathOffsets)
@@ -2249,12 +2247,12 @@ let updateSwitch= function(sw,grade,keepDir)
 			let a= sw.angle +
 			  Math.atan(Math.tan(sw.angles[i-1])/csg);
 			p.direction=
-			  new THREE.Vector3(Math.cos(a),Math.sin(a),0);
+			  new CSG.Vector(Math.cos(a),Math.sin(a),0);
 			p.forcedDirection= 1;
 		}
 		if (p.extSwitchPoint) {
 			let ep= p.extSwitchPoint;
-			let dp= ep.position.clone().sub(p0.position);
+			let dp= ep.position.minus(p0.position);
 			let dot= dp.dot(p0.direction);
 //			console.log("extswp "+ep.position.z+" "+p0.position.z+
 //			  " "+dot+" "+sw.grade);
@@ -2309,8 +2307,9 @@ let updateSwitches= function()
 			continue;
 //		console.log("updsw "+i+" "+n);
 		if (t.controlPoints[n-1].sw) {
-			t.controlPoints[n-1].direction.negate();
-			t.controlPoints[n-1].forcedDirection= 2;
+			let cp= t.controlPoints[n-1];
+			cp.direction= cp.direction.negated();
+			cp.forcedDirection= 2;
 //			console.log("swnegdir "+i+" "+n);
 		}
 	}
@@ -2391,7 +2390,7 @@ let calcCPElevations= function()
 //			  switches.indexOf(sw)+" "+sw.points.indexOf(cp)+" "+
 //			  cp.elevDist+" "+other.elevDist);
 		cp.elevDist= dist;
-		let d= other.position.distanceTo(cp.position);
+		let d= other.position.minus(cp.position).length();
 		if (other.elevDist < bigDist) {
 			let dz= elev-other.position.z;
 			let dd= dist+d+other.elevDist;
@@ -2680,7 +2679,7 @@ let readData= function(filename)
 		for (let j=0; j<points.length; j++) {
 			let dp= points[j];
 			let p= {
-				position: new THREE.Vector3(dp.position[0],
+				position: new CSG.Vector(dp.position[0],
 				  dp.position[1],dp.position[2]),
 				straight: dp.straight,
 				forcedDirection: dp.forcedDirection,
@@ -2689,7 +2688,7 @@ let readData= function(filename)
 				overpass: dp.overpass || 0
 			};
 			if (dp.direction)
-				p.direction= new THREE.Vector3(dp.direction[0],
+				p.direction= new CSG.Vector(dp.direction[0],
 				  dp.direction[1],dp.direction[2]);
 			if (dp.endNode && dp.endNode<trackDB.nodes.length)
 				p.endNode= trackDB.nodes[dp.endNode];
@@ -2738,7 +2737,7 @@ let readData= function(filename)
 			if (j > 0) {
 				let o= dSwitch.offsets[j-1];
 				sw.offsets.push(
-				  new THREE.Vector3(o[0],o[1],o[2]));
+				  new CSG.Vector(o[0],o[1],o[2]));
 				sw.angles.push(dSwitch.angles[j-1]);
 			}
 		}
@@ -2867,14 +2866,13 @@ let cutAndFill= function(cut)
 	if (selected.sw) {
 		let p0= selected.sw.points[0];
 		let p1= selected.sw.points[1];
-		let dp= p1.position.clone().sub(p0.position);
+		let dp= p1.position.minus(p0.position);
 		let da= step/dp.length();
-		let perp= new THREE.Vector2(dp.y,dp.x);
-		perp.normalize();
+		let perp= new CSG.Vector(dp.y,dp.x,0).unit();
 		let dx= 2*perp.x;
 		let dy= 2*perp.y;
 		for (let a=0; a<=1; a+= da) {
-			let p= dp.clone().multiplyScalar(a).add(p0.position);
+			let p= dp.times(a).plus(p0.position);
 			let elev= p.z;
 			adjElevation(p.x,p.y,elev);
 			adjElevation(p.x+dx,p.y+dy,elev);
@@ -2905,8 +2903,7 @@ let cutAndFill= function(cut)
 	let dist= 0;
 	if (selected.distance <= dist) {
 		let p1= trackPoints[1];
-		let perp= new THREE.Vector2(p1.y-p0.y,p1.x-p0.x);
-		perp.normalize();
+		let perp= new CSG.Vector(p1.y-p0.y,p1.x-p0.x,0).unit();
 		let dx= 2*perp.x;
 		let dy= 2*perp.y;
 		let e= getElevation(p0.x,p0.y,false);
@@ -2918,9 +2915,8 @@ let cutAndFill= function(cut)
 	}
 	for (let i=1; i<trackPoints.length; i++) {
 		let p1= trackPoints[i];
-		let d= p1.distanceTo(p0);
-		let perp= new THREE.Vector2(p1.y-p0.y,p1.x-p0.x);
-		perp.normalize();
+		let d= p1.minus(p0).length();
+		let perp= new CSG.Vector(p1.y-p0.y,p1.x-p0.x,0).unit();
 		let dx= 2*perp.x;
 		let dy= 2*perp.y;
 		while (dist+step <= dist0+d) {
@@ -3196,7 +3192,7 @@ let calcSwitchOffsets= function(sw)
 			}
 			pathOffsets.push({ x: x, y: y, angle: angle });
 		}
-		sw.offsets[i]= new THREE.Vector3(x,y,0);
+		sw.offsets[i]= new CSG.Vector(x,y,0);
 		sw.angles[i]= angle;
 		sw.pathOffsets[i]= pathOffsets;
 	}
@@ -3215,9 +3211,9 @@ let simplify= function()
 	for (let i=0; i<controlPoints.length; i++) {
 		let cp= controlPoints[i];
 		points.push({
-		  position: new THREE.Vector2(cp.position.x,cp.position.y),
-		  direction: new THREE.Vector2(cp.direction.x,cp.direction.y).
-		   normalize(),
+		  position: new CSG.Vector(cp.position.x,cp.position.y,0),
+		  direction: new CSG.Vector(cp.direction.x,cp.direction.y,0).
+		   unit(),
 		});
 	}
 	let esq= 0;
@@ -3226,12 +3222,11 @@ let simplify= function()
 		let p2= points[i+1].position;
 		let d1= points[i].direction;
 		let d2= points[i+1].direction;
-		let dp= p2.clone().sub(p1);
-		dp.normalize();
+		let dp= p2.minus(p1).unit();
 		let dot1= dp.dot(d1);
 		let dot2= dp.dot(d2);
-		let cross1= d1.cross(dp);
-		let cross2= dp.cross(d2);
+		let cross1= d1.cross(dp).z;
+		let cross2= dp.cross(d2).z;
 		if (dot1>0 && dot2>0 &&
 		  ((cross1>0 && cross2<0) || (cross1<0 && cross2>0))) {
 			let p0= points[i-1].position;
@@ -3242,7 +3237,7 @@ let simplify= function()
 			dsq= lineDistSq(p2.x,p2.y,p0.x,p0.y,p3.x,p3.y);
 			if (esq < dsq)
 				esq= dsq;
-			console.log("scurve "+p0.distanceTo(p3)+" "+esq);
+			console.log("scurve "+p0.minus(p3).length()+" "+esq);
 		}
 	}
 	console.log("esq "+esq+" "+Math.sqrt(esq));
@@ -3407,7 +3402,7 @@ let getElevatedTrack= function(minHgt)
 		}
 		for (let j=1; j<trackPoints.length; j++) {
 			let tp1= trackPoints[j];
-			dist+= tp1.distanceTo(tp0);
+			dist+= tp1.minus(tp0).length();
 			while (dist>cp1.distance && k<controlPoints.length-1) {
 				cp0= cp1;
 				k++;
@@ -3466,7 +3461,7 @@ let calcTrackPointElevations= function()
 			let dist= dp0.distance;
 			for (let k=dp0.trackPoint+1; k<=dp1.trackPoint; k++) {
 				let tp1= trackPoints[k];
-				dist+= tp1.distanceTo(tp0);
+				dist+= tp1.minus(tp0).length();
 				if (dist > dp1.distance)
 					dist= dp1.distance;
 				let a= (dist-dp0.distance)/
@@ -3487,7 +3482,7 @@ let calcTrackPointElevations= function()
 			let dist= cp0.distance;
 			for (let k=cp0.trackPoint+1; k<=cp1.trackPoint; k++) {
 				let tp1= trackPoints[k];
-				dist+= tp1.distanceTo(tp0);
+				dist+= tp1.minus(tp0).length();
 				if (dist > cp1.distance)
 					dist= cp1.distance;
 				let a= (dist-cp0.distance)/
@@ -3526,7 +3521,7 @@ let alignForest= function(cp)
 	}
 	if (bestp) {
 		cp.direction=
-		  new THREE.Vector3(bestp.x-x,bestp.y-y,0).normalize();
+		  new CSG.Vector(bestp.x-x,bestp.y-y,0).unit();
 		let areaw= 2*(Math.sqrt(bestd)-cp.forest.sizew-5);
 		if (areaw < cp.forest.areaw)
 			cp.forest.areaw= areaw;
@@ -3625,7 +3620,7 @@ let setLength= function()
 	if (i==selectedTrack.length-1)
 		return;
 	let cp2= selectedTrack.controlPoints[i+1];
-	let d= selected.position.distanceTo(cp2.position);
+	let d= selected.position.minus(cp2.position).length();
 	let dist= parseFloat(document.getElementById("tracklength").value);
 	if (dist <= 0)
 		return;
@@ -3725,7 +3720,7 @@ let trackElevation= function(track,cp0,cp1,a)
 	let tp0= trackPoints[cp0.trackPoint];
 	for (let k=cp0.trackPoint+1; k<=cp1.trackPoint; k++) {
 		let tp1= trackPoints[k];
-		let d= tp1.distanceTo(tp0);
+		let d= tp1.minus(tp0).length();
 		console.log(" "+da+" "+d);
 		if (d > da) {
 			a= da/d;
@@ -3759,25 +3754,23 @@ let trackTrackInt= function(track1,track2,cp11,cp12,cp21,cp22)
 			let tp22= trackPoints2[j+1];
 			let pi= segSegInt(tp11,tp12,tp21,tp22);
 			if (pi.d==0 || pi.s<0 || pi.s>1 || pi.t<0 || pi.t>1) {
-				d2+= tp22.distanceTo(tp21);
+				d2+= tp22.minus(tp21).length();
 				continue;
 			}
-			d1+= pi.s*tp12.distanceTo(tp11);
-			d2+= pi.t*tp22.distanceTo(tp21);
+			d1+= pi.s*tp12.minus(tp11).length();
+			d2+= pi.t*tp22.minus(tp21).length();
 			pi.s= d1/(cp12.distance-cp11.distance);
 			pi.t= d2/(cp22.distance-cp21.distance);
 			if (pi.s > 1)
 				pi.s= 1;
 			if (pi.t > 1)
 				pi.t= 1;
-			let dir1= tp12.clone().sub(tp11);
-			let dir2= tp22.clone().sub(tp21);
-			dir1.normalize();
-			dir2.normalize();
+			let dir1= tp12.minus(tp11).unit();
+			let dir2= tp22.minus(tp21).unit();
 			pi.dot= dir1.dot(dir2);
 			return pi;
 		}
-		d1+= tp12.distanceTo(tp11);
+		d1+= tp12.minus(tp11).length();
 	}
 	return { d:0 };
 }
@@ -4041,10 +4034,10 @@ let calcWire= function(calcZ)
 			let dx= p1.x-p0.x;
 			let dy= p1.y-p0.y;
 			len= Math.sqrt(dx*dx + dy*dy);
-			p0.dx= dx/len;
-			p0.dy= dy/len;
+			p0.dx= p1.dx= dx/len;
+			p0.dy= p1.dy= dy/len;
 			if (calcZ)
-				p0.dz= (p1.z-p0.z)/len;
+				p0.dz= p1.dz= (p1.z-p0.z)/len;
 			p1.px= -dy/len;
 			p1.py= dx/len;
 			if (j == 1) {
@@ -4090,14 +4083,22 @@ let calcPolyForest= function(track,calcZ)
 	if (n<3 || !controlPoints[0].forest || controlPoints[0].forest.areaw)
 		return null;
 	let polygon= [];
-	let center= new THREE.Vector3();
-	let box= new THREE.Box3();
+	let box= { min: new CSG.Vector(1e10,1e10,1e10),
+	  max: new CSG.Vector(-1e10,-1e10,-1e10) };
+	let expandBox= function(p,v) {
+		if (box.min[v] > p[v])
+			box.min[v]= p[v];
+		if (box.max[v] < p[v])
+			box.max[v]= p[v];
+	}
 	for (let j=0; j<n; j++) {
 		let p= controlPoints[j].position;
 		polygon.push(p);
-		box.expandByPoint(p);
+		expandBox(p,"x");
+		expandBox(p,"y");
+		expandBox(p,"z");
 	}
-	box.getCenter(center);
+	let center= box.min.plus(box.max).dividedBy(2);
 	let area= 0;
 	let p0= polygon[n-1];
 	for (let j=0; j<n; j++) {

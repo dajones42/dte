@@ -37,7 +37,7 @@ let setupMap= function()
 	canvas.addEventListener('mousedown',mapMouseDown);
 	canvas.addEventListener('mousemove',mapMouseMove);
 	canvas.addEventListener('mouseup',mapMouseUp);
-	THREE.Cache.enabled= true;
+//	THREE.Cache.enabled= true;
 }
 
 //	draw display in map canvas
@@ -639,6 +639,26 @@ let mapMouseUp= function(e)
 	renderCanvas();
 }
 
+let loadMapImage= function(url,bgt)
+{
+//	console.log("loadmapimage "+url);
+//	let loader= new THREE.ImageLoader();
+//	loader.load(url,
+//	  function(image) { bgt.image= image; renderMap(); },
+//	  null,function(){ console.err("cant load "+url) });
+	let image= document.createElement("img");
+	let onLoad= function() {
+		bgt.image= image;
+		renderMap();
+	};
+	let onError= function() {
+		console.err("cannot load "+url);
+	};
+	image.addEventListener("load",onLoad);
+	image.addEventListener("error",onError);
+	image.src= url;
+}
+
 //	fetch background images for map display
 let updateBackgroundTiles= function()
 {
@@ -755,10 +775,7 @@ let updateBackgroundTiles= function()
 			}
 		}
 //		console.log(url);
-		let loader= new THREE.ImageLoader();
-		loader.load(url,
-		  function(image) { bgt.image= image; renderMap(); },
-		  null,function(){ console.err("cant load "+url) });
+		loadMapImage(url,bgt);
 		if (mapType == "imageryhydro") {
 			bgt= {
 				tx: tx, ty: ty, u: u, v: v, zoom: zoom,
@@ -774,10 +791,7 @@ let updateBackgroundTiles= function()
 				let url= "file://"+path;
 				bgt.image.src= url;
 			} else {
-				loader= new THREE.ImageLoader();
-				loader.load(url2,function(image) {
-				  bgt.image= image; renderMap(); }, null,
-				  function(){ console.err("cant load "+url) });
+				loadMapImage(url2,bgt);
 			}
 		}
 	}
@@ -1298,7 +1312,7 @@ let saveWater= function()
 			let z= getElevation(p.x,p.y,true);
 			if (z <= 0)
 				z= 0;
-			let cp= { position: new THREE.Vector3(p.x,p.y,z)
+			let cp= { position: new CSG.Vector(p.x,p.y,z)
 			  };//, straight: true };
 			controlPoints.push(cp);
 		}

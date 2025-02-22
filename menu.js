@@ -227,6 +227,7 @@ let setupMenu= function() {
 			mapType= "osm"; backgroundTiles=[]; renderCanvas();
 		}
 	}));
+	if (trackDB && !addToTrackDB) {
 	mapMenu.append(new nw.MenuItem({
 		label: 'Route',
 		click: function() {
@@ -246,6 +247,7 @@ let setupMenu= function() {
 			backgroundTiles=[]; renderCanvas();
 		}
 	}));
+	}
 	mapMenu.append(new nw.MenuItem({
 		label: 'USGS Imagery/Hydro',
 		click: function() {
@@ -253,6 +255,7 @@ let setupMenu= function() {
 			backgroundTiles=[]; renderCanvas();
 		}
 	}));
+	if (trackDB && !addToTrackDB) {
 	mapMenu.append(new nw.MenuItem({
 		label: 'Save Water',
 		click: saveWater
@@ -265,6 +268,7 @@ let setupMenu= function() {
 		label: 'Save Tile Colors',
 		click: saveTileColors
 	}));
+	}
 	topMenu.append(new nw.MenuItem({
 		label: 'Map',
 		submenu: mapMenu

@@ -53,21 +53,22 @@ let setupMenu= function() {
 			click: saveToRoute
 		}));
 	}
-	fileMenu.append(new nw.MenuItem({
-		label: 'Import CSV',
-		click: function() {
-			document.getElementById('fileimport').click();
-		}
-	}));
-	if (tracks.length > 0) {
+	if (trackDB && !addToTrackDB) {
 		fileMenu.append(new nw.MenuItem({
-			label: 'Export CSV',
+			label: 'Import CSV',
 			click: function() {
-				document.getElementById('fileexport').click();
+				document.getElementById('fileimport').click();
 			}
 		}));
-	}
-	if (trackDB && !addToTrackDB) {
+		if (tracks.length > 0) {
+			fileMenu.append(new nw.MenuItem({
+				label: 'Export CSV',
+				click: function() {
+					document.getElementById('fileexport').
+					  click();
+				}
+			}));
+		}
 		fileMenu.append(new nw.MenuItem({
 			label: 'Add Tiles',
 			click: addTiles
@@ -102,93 +103,95 @@ let setupMenu= function() {
 		label: 'Delete',
 		click: deleteControlPoint
 	}));
-	editMenu.append(new nw.MenuItem({
-		label: 'Straight',
-		click: makeStraight
-	}));
-	editMenu.append(new nw.MenuItem({
-		label: 'Curve',
-		click: makeCurve
-	}));
-	editMenu.append(new nw.MenuItem({
-		label: 'Align',
-		click: alignStraight
-	}));
-	editMenu.append(new nw.MenuItem({
-		label: 'Equalize Radius',
-		click: equalizeCurveRadius
-	}));
-	editMenu.append(new nw.MenuItem({
-		label: 'Offset',
-		click: moveAway
-	}));
-	editMenu.append(new nw.MenuItem({
-		label: 'Calc.Elev.',
-		click: setCalcElev
-	}));
-	editMenu.append(new nw.MenuItem({
-		label: 'Bridge',
-		click: toggleBridge
-	}));
-	editMenu.append(new nw.MenuItem({
-		label: 'Overpass',
-		click: toggleOverpass
-	}));
-	editMenu.append(new nw.MenuItem({
-		label: 'No Cut',
-		click: toggleNoCut
-	}));
-	editMenu.append(new nw.MenuItem({
-		label: 'Group',
-		click: selectGroup
-	}));
-	editMenu.append(new nw.MenuItem({
-		label: 'Change Switch Type',
-		click: changeSwitchType
-	}));
-	editMenu.append(new nw.MenuItem({
-		label: 'Switch Stand',
-		click: toggleSwitchStand
-	}));
-	editMenu.append(new nw.MenuItem({
-		label: 'Change Track Type',
-		click: changeTrackType
-	}));
-	editMenu.append(new nw.MenuItem({
-		label: 'Change Track Name',
-		click: changeTrackName
-	}));
-	editMenu.append(new nw.MenuItem({
-		label: 'Set Length',
-		click: setLength
-	}));
-	editMenu.append(new nw.MenuItem({
-		label: 'Level Crossing',
-		click: setCrossingLevel
-	}));
-	editMenu.append(new nw.MenuItem({
-		label: 'Cut',
-		click: cutTerrain
-	}));
-	editMenu.append(new nw.MenuItem({
-		label: 'Fill&Cut',
-		click: fillTerrain
-	}));
+	if (trackDB && !addToTrackDB) {
+		editMenu.append(new nw.MenuItem({
+			label: 'Straight',
+			click: makeStraight
+		}));
+		editMenu.append(new nw.MenuItem({
+			label: 'Curve',
+			click: makeCurve
+		}));
+		editMenu.append(new nw.MenuItem({
+			label: 'Align',
+			click: alignStraight
+		}));
+		editMenu.append(new nw.MenuItem({
+			label: 'Equalize Radius',
+			click: equalizeCurveRadius
+		}));
+		editMenu.append(new nw.MenuItem({
+			label: 'Offset',
+			click: moveAway
+		}));
+		editMenu.append(new nw.MenuItem({
+			label: 'Calc.Elev.',
+			click: setCalcElev
+		}));
+		editMenu.append(new nw.MenuItem({
+			label: 'Bridge',
+			click: toggleBridge
+		}));
+		editMenu.append(new nw.MenuItem({
+			label: 'Overpass',
+			click: toggleOverpass
+		}));
+		editMenu.append(new nw.MenuItem({
+			label: 'No Cut',
+			click: toggleNoCut
+		}));
+		editMenu.append(new nw.MenuItem({
+			label: 'Group',
+			click: selectGroup
+		}));
+		editMenu.append(new nw.MenuItem({
+			label: 'Change Switch Type',
+			click: changeSwitchType
+		}));
+		editMenu.append(new nw.MenuItem({
+			label: 'Switch Stand',
+			click: toggleSwitchStand
+		}));
+		editMenu.append(new nw.MenuItem({
+			label: 'Change Track Type',
+			click: changeTrackType
+		}));
+		editMenu.append(new nw.MenuItem({
+			label: 'Change Track Name',
+			click: changeTrackName
+		}));
+		editMenu.append(new nw.MenuItem({
+			label: 'Set Length',
+			click: setLength
+		}));
+		editMenu.append(new nw.MenuItem({
+			label: 'Level Crossing',
+			click: setCrossingLevel
+		}));
+		editMenu.append(new nw.MenuItem({
+			label: 'Cut',
+			click: cutTerrain
+		}));
+		editMenu.append(new nw.MenuItem({
+			label: 'Fill&Cut',
+			click: fillTerrain
+		}));
 //	editMenu.append(new nw.MenuItem({
 //		label: 'Simplify Track',
 //		click: simplify
 //	}));
-	editMenu.append(new nw.MenuItem({
-		label: 'Attach Model',
-		click: attachModel
-	}));
+		editMenu.append(new nw.MenuItem({
+			label: 'Attach Model',
+			click: attachModel
+		}));
+		editMenu.append(new nw.MenuItem({
+			label: 'Attach Wire Options',
+			click: attachWireOptions
+		}));
+	}
 	editMenu.append(new nw.MenuItem({
 		label: 'Attach Forest',
 		click: attachForest
-	}));
-	editMenu.append(new nw.MenuItem({
-		label: 'Attach Wire Options',
-		click: attachWireOptions
 	}));
 	topMenu.append(new nw.MenuItem({
 		label: 'Edit',

@@ -566,7 +566,7 @@ let mapMouseMove= function(event)
 				  dragging.direction.x);
 				dragging.direction.x= dx;
 				dragging.direction.y= dy;
-				dragging.direction.normalize();
+				dragging.direction= dragging.direction.unit();
 				dragging.forcedDirection= true;
 				if (selectedGroup) {
 					let angle=
@@ -755,7 +755,7 @@ let updateBackgroundTiles= function()
 		let hgt= -.5*((uv01.v-uv00.v)+(uv11.v-uv10.v));
 		let skew= .5*((uv01.u-uv00.u)+(uv11.u-uv10.u));
 		let skewv= .5*((uv10.v-uv00.v)+(uv11.v-uv01.v));
-		console.log("uv "+u+" "+v+" "+wid+" "+hgt+" "+skew+" "+skewv);
+//		console.log("uv "+u+" "+v+" "+wid+" "+hgt+" "+skew+" "+skewv);
 		let bgt= {
 			tx: tx, ty: ty, u: u, v: v, zoom: zoom,
 			wid: wid, hgt: hgt, skew: skew, skewv: skewv

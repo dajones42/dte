@@ -736,6 +736,7 @@ let addLongCurvePoints= function(pointsIn)
 //		console.log("dot2 "+dot2+" "+cross2);
 		if (dot1<=0 && dot2<=0) {
 			let pi= segSegInt(p1,p1.plus(d1),p2,p2.plus(d2));
+			pi.z= 0;
 			let offset= p1.minus(p2).length();
 			if (pi.d != 0) {
 				let t1= p1.minus(pi).length();
@@ -924,7 +925,8 @@ let calcDirection= function(track)
 	}
 	for (let i=0; i<controlPoints.length; i++) {
 		let cp= controlPoints[i];
-		if (cp.sw || (cp.forcedDirection && !prevStraight)) {
+		if (cp.sw || cp.endNode ||
+		  (cp.forcedDirection && !prevStraight)) {
 			prevStraight= cp.straight;
 			continue;
 		}
@@ -940,7 +942,7 @@ let calcDirection= function(track)
 		prevStraight= cp.straight;
 	}
 	let n= controlPoints.length;
-	if (n>2 && !controlPoints[0].switch &&
+	if (n>2 && !controlPoints[0].switch && !controlPoints[0].endNode &&
 	  !controlPoints[0].straight && !controlPoints[0].forcedDirection) {
 		let p0= controlPoints[0];
 		let p1= controlPoints[1];
@@ -954,7 +956,7 @@ let calcDirection= function(track)
 		p0.direction.x= cs*d0.x - sn*d0.y;
 		p0.direction.y= sn*d0.x + cs*d0.y;
 	}
-	if (n>2 && !controlPoints[n-1].sw &&
+	if (n>2 && !controlPoints[n-1].sw && !controlPoints[n-1].endNode &&
 	  !controlPoints[n-2].straight && !controlPoints[n-1].forcedDirection) {
 		let p1= controlPoints[n-2];
 		let p2= controlPoints[n-1];
@@ -995,8 +997,10 @@ let addControlPoint= function(x,y)
 	}
 	if (!selected) {
 		controlPoints.push(cp);
-		cp.direction= new CSG.Vector(1,0,0);
-		cp.forcedDirection= true;
+		if (!cp.endNode) {
+			cp.direction= new CSG.Vector(1,0,0);
+			cp.forcedDirection= true;
+		}
 	} else {
 		let i= controlPoints.indexOf(selected);
 		if (selected.sw && i==0) {
@@ -1005,6 +1009,8 @@ let addControlPoint= function(x,y)
 			controlPoints.splice(i,0,cp);
 		} else if (!selected.direction || i==controlPoints.length-1) {
 			controlPoints.push(cp);
+			if (cp.endNode)
+				cp.direction= cp.direction.negated();
 		} else {
 			let dp= cp.position.minus(selected.position);
 			let dot= dp.dot(selected.direction);
@@ -1082,7 +1088,8 @@ let makeStraight= function()
 	if (!selected)
 		return;
 	selected.straight= true;
-	selected.forcedDirection= false;
+	if (!selected.endNode)
+		selected.forcedDirection= false;
 	calcTrack();
 	renderCanvas();
 }
@@ -1095,6 +1102,8 @@ let makeCurve= function()
 	if (!selected)
 		return;
 	selected.straight= false;
+	if (!selected.endNode)
+		selected.forcedDirection= false;
 	calcTrack();
 	renderCanvas();
 }
@@ -1626,6 +1635,8 @@ let printTrack= function(curves,rpCurves)
 			if (cp0.forest.type2)
 				printTreeType(cp0.forest.type2);
 		}
+		document.getElementById('results').innerHTML= s;
+		return;
 	}
 	s+= "<br>Flat Track "+
 	  "<table><tr><th>N</th><th>Straight</th><th>Angle</th>"+
@@ -2153,7 +2164,7 @@ let reverseTrack= function(track)
 			cp.straight= track.controlPoints[i+1].straight;
 		else
 			cp.straight= false;
-		if (cp.straight)
+		if (cp.straight && !cp.endNode)
 			cp.forcedDirection= false;
 		cp.direction= cp.direction.negated();
 	}
@@ -3332,6 +3343,12 @@ let setupForestData= function()
 	}
 	s+= "</table>";
 	document.getElementById('forestdata').innerHTML= s;
+	if (addToTrackDB) {
+		s= '<p>Track Type: <select id="tracktype">'+
+		  '<option value=forest selected>Forest'+
+		  '</select></p>';
+		document.getElementById('options').innerHTML= s;
+	}
 }
 
 //	Implements the Edit menu Attach Forest feature

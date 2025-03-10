@@ -451,7 +451,7 @@ let readTSection= function(routePath)
 	}
 	path= routePath+fspath.sep+'tsection.dat';
 	let rts= readFile(path);
-	for (let i=0; i<rts.length; i++) {
+	for (let i=0; rts && i<rts.length; i++) {
 		if (typeof rts[i] != "string")
 			continue;
 		let lower= rts[i].toLowerCase();
@@ -1342,6 +1342,8 @@ let setNextUid= function(tile)
 		if (typeof wFile[i] != "string")
 			continue;
 		let node= wFile[i+1];
+		if  (isMyVdbid(node))
+			continue;
 		for (let j=0; j<node.length; j++) {
 			if (typeof node[j] != "string")
 				continue;
@@ -1353,6 +1355,78 @@ let setNextUid= function(tile)
 		}
 	}
 //	console.log("nextuid "+tile.filename+" "+tile.nextUid);
+}
+
+let readWorldFile= function(tile)
+{
+	if (tile.otherModels)
+		return;
+	let path= getWorldFilePath(tile);
+	let wFile= readFile(path);
+	if (!wFile)
+		return;
+	if (wFile[0].toLowerCase() != "tr_worldfile")
+		throw "bad .w file "+path;
+	wFile= wFile[1];
+	tile.otherModels= [];
+	let x0= 2048*(tile.x-centerTX);
+	let y0= 2048*(tile.z-centerTZ);
+	for (let i=0; i<wFile.length; i++) {
+		if (typeof wFile[i] != "string")
+			continue;
+		let lower= wFile[i].toLowerCase();
+		if (lower!="static" && lower!="forest")
+			continue;
+		let children= wFile[i+1];
+		if  (isMyVdbid(children))
+			continue;
+		let model= {};
+		let euler= null;
+		let size= null;
+		for (let j=0; j<children.length; j++) {
+			if (typeof children[j] != "string")
+				continue;
+			lower= children[j].toLowerCase();
+			if (lower == "position") {
+				model.x= x0+parseFloat(children[j+1][0]);
+				model.y= y0+parseFloat(children[j+1][2]);
+			} else if (lower == "qdirection") {
+				let x= parseFloat(children[j+1][0]);
+				let y= parseFloat(children[j+1][1]);
+				let z= parseFloat(children[j+1][2]);
+				let w= parseFloat(children[j+1][3]);
+				euler= qDirInv({x:x, y:y, z:z, w:w});
+			} else if (lower == "area") {
+				let h= parseFloat(children[j+1][0]);
+				let w= parseFloat(children[j+1][1]);
+				size= { w:w, h:h };
+			}
+		}
+		if (euler && size) {
+			let angle= Math.PI/2-euler.y;
+			let cs= Math.cos(angle);
+			let sn= Math.sin(angle);
+			model.wx= size.w/2*cs;
+			model.wy= size.w/2*sn;
+			model.hx= size.h/2*cs;
+			model.hy= size.h/2*sn;
+		}
+		tile.otherModels.push(model);
+	}
+	console.log("read "+path+" "+tile.otherModels.length);
+}
+
+let myVdbid= "4123456789";
+
+let isMyVdbid= function(children)
+{
+	for (let i=0; i<children.length; i+=2) {
+		let child= children[i];
+		if (typeof child=="string" &&
+		  child.toLowerCase()=="vdbid")
+			return children[i+1][0]==myVdbid;
+	}
+	return false;
 }
 
 //	creates a new .w file for the specified tile containing Dyntrack
@@ -1374,16 +1448,6 @@ let writeWorldFile= function(tile)
 	fs.writeSync(fd,"SIMISA@@@@@@@@@@JINX0w0t______\r\n",null,"utf16le");
 	fs.writeSync(fd,"\r\n",null,"utf16le");
 	fs.writeSync(fd,"Tr_Worldfile (\r\n",null,"utf16le");
-	let myVdbid= "4123456789";
-	let isMyVdbid= function(children) {
-		for (let i=0; i<children.length; i+=2) {
-			let child= children[i];
-			if (typeof child=="string" &&
-			  child.toLowerCase()=="vdbid")
-				return children[i+1][0]==myVdbid;
-		}
-		return false;
-	}
 	for (let i=0; wFile && addToTrackDB && i<wFile.length; i+=2) {
 		if (isMyVdbid(wFile[i+1]))
 			continue;
@@ -1845,6 +1909,8 @@ let testQDir= function()
 //	Also saves any modified terrain elevation data.
 let saveToRoute= function()
 {
+	if (!addToTrackDb)
+		myVdbid= "4123456788";
 	calcTrackPointElevations();
 	calcWire(true);
 	overrideSwitchShapes();
@@ -5639,7 +5705,7 @@ let readForestsDat= function()
 	return treeTypes;
 }
 
-//	returns QDirection given Euler angles (xyz order)
+//	returns QDirection given Euler angles
 let qDir= function(x,y,z)
 {
 	let cx= Math.cos(x/2);
@@ -5664,4 +5730,48 @@ let qDir= function(x,y,z)
 //		  result.z+" "+result.w);
 //	}
 	return result;
+}
+
+//	returns Euler angles given qDirection (zxy order)
+let qDirInv= function(q)
+{
+	let a= q.w - q.x;
+	let b= q.z + q.y;
+	let c= q.x + q.w;
+	let d= q.y - q.z;
+	let t2= Math.acos(2*(a*a+b*b)/(a*a+b*b+c*c+d*d)-1);
+	let tp= Math.atan2(b,a);
+	let tm= Math.atan2(d,c);
+	let t1= tp-tm;
+	let t3= tp+tm;
+	if (t2 == 0) {
+		t1= 0;
+		t3= 2*tp;
+	} else if (t2 == Math.PI/2) {
+		t1= 0;
+		t3= 2*tm;
+	}
+	t2= t2-Math.PI/2;
+//	testQDirInv(q,t2,t3,t1);
+	return { x:t2, y:t3, z:t1 };
+}
+
+let testQDirInv= function(q1,t2,t13,t1)
+{
+	let q2= qDir(t2,t3,t1);
+	let neq= function(v1,v2) {
+		return v1-v2>.00001 || v2-v1>.00001;
+	}
+	let lenSq= function(q) {
+		return q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w;
+	}
+//	rounding can cause this to fail
+	if (neq(q1.x,q2.x) || neq(q1.y,q2.y) || neq(q1.z,q2.z) ||
+	  neq(q1.w,q2.w) || neq(lenSq(q1),1) || neq(lenSq(q2),1)) {
+		console.error("bad qdirinv "+q1.x+" "+q1.y+" "+q1.z+" "+q1.w+
+		  " "+lenSq(q1));
+		console.error("bad qdirinv "+t2+" "+t3+" "+t1);
+		console.error("bad qdirinv "+q2.x+" "+q2.y+" "+q2.z+" "+q2.w+
+		  " "+lenSq(q2));
+	}
 }

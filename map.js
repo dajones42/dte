@@ -57,6 +57,9 @@ let renderMap= function()
 		let u= (2048*(tile.x-centerTX)-centerU)*scale + width/2;
 		let v= height/2 - (2048*(tile.z-centerTZ)-centerV)*scale;
 		context.fillText(tile.filename+" "+tile.x+" "+tile.z,u,v);
+		if (scale>.2 && !tile.otherModels && addToTrackDB &&
+		  u>=0 && u<=width && v>=0 && v<=height)
+			readWorldFile(tile);
 	}
 	let paint= true;
 	for (let i=0; i<backgroundTiles.length; i++) {
@@ -161,6 +164,34 @@ let renderMap= function()
 		let u= (2048*(tile.x-centerTX)-1024-centerU)*scale + width/2;
 		let v= height/2 - (2048*(tile.z-centerTZ)+1024-centerV)*scale;
 		context.strokeRect(u,v,2048*scale,2048*scale);
+	}
+	for (let i=0; i<tiles.length; i++) {
+		let tile= tiles[i];
+		let otherModels= tile.otherModels;
+		if (!otherModels)
+			continue;
+		context.fillStyle= "green";
+		context.strokeStyle= "green";
+		for (let j=0; otherModels && j<otherModels.length; j++) {
+			let om= otherModels[j];
+			let u= (om.x-centerU)*scale + width/2;
+			let v= height/2 - (om.y-centerV)*scale;
+			if (om.wx || om.wy) {
+				let wx= om.wx*scale;
+				let wy= om.wy*scale;
+				let hx= om.hx*scale;
+				let hy= om.hy*scale;
+				context.beginPath();
+				context.moveTo(u-wx+hy,v-hx-wy);
+				context.lineTo(u+wx+hy,v-hx+wy);
+				context.lineTo(u+wx-hy,v+hx+wy);
+				context.lineTo(u-wx-hy,v+hx-wy);
+				context.lineTo(u-wx+hy,v-hx-wy);
+				context.stroke();
+			} else {
+				context.fillRect(u-3,v-3,6,6);
+			}
+		}
 	}
 	if (selected && selectedTrack.type=="contour") {
 		let x= 8*Math.ceil(selected.position.x/8);
@@ -652,7 +683,7 @@ let loadMapImage= function(url,bgt)
 		renderMap();
 	};
 	let onError= function() {
-		console.err("cannot load "+url);
+		console.error("cannot load "+url);
 	};
 	image.addEventListener("load",onLoad);
 	image.addEventListener("error",onError);

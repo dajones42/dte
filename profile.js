@@ -240,7 +240,7 @@ let renderProfile= function()
 		if (cp.sw) {
 			let j= cp.sw.points.indexOf(cp);
 			let cp2= cp.sw.points[j==0?1:0];
-			let d= cp.position.distanceTo(cp2.position);
+			let d= cp.position.minus(cp2.position).length();
 			if (i != 0)
 				d*= -1;
 			context.beginPath();
@@ -309,7 +309,7 @@ let calcProfileOffset= function()
 		if (cp.sw && cp.sw.profileSign==0) {
 			let j= cp.sw.points.indexOf(cp);
 			let cp2= cp.sw.points[j==0?1:0];
-			let d= cp.position.distanceTo(cp2.position);
+			let d= cp.position.minus(cp2.position).length();
 			if (index==0 && j==0) {
 				cp.sw.profileOffset= track.profileOffset;
 				cp.sw.profileSign= -track.profileSign;
@@ -351,7 +351,7 @@ let calcProfileOffset= function()
 			  sw.profileSign>0 && j==0)
 				return;
 			let cp2= sw.points[j==0?1:0];
-			let d= cp.position.distanceTo(cp2.position);
+			let d= cp.position.minus(cp2.position).length();
 			if (index==0 && j==0) {
 				track.profileOffset= sw.profileOffset;
 				track.profileSign= -sw.profileSign;

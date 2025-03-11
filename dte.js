@@ -1678,6 +1678,11 @@ let printTrack= function(curves,rpCurves)
 		}
 		if (c.controlPoint && c.controlPoint===selected)
 			s+= "</td><td>selected";
+		if (c.controlPoint && c.controlPoint.wireOptions) {
+			let wo= c.controlPoint.wireOptions;
+			s+= "</td><td>"+wo.length.toFixed(2)+" "+
+			  wo.wireModel+" "+wo.poleModel+" "+wo.poleSide;
+		}
 		s+= "</td></tr>";
 	}
 	s+= "</table>";
@@ -1949,7 +1954,11 @@ let calcRotPlaneCurves= function(points)
 		let de= p2.elevation-p1.elevation;
 //		console.log("dist "+dist1+" "+dist2+" "+de);
 		let dot= p1.direction.dot(p2.direction);
-		let cross= p1.direction.cross(p2.direction);
+		if (dot > 1)
+			dot= 1;
+		else if (dot < -1)
+			dot= -1;
+		let cross= p1.direction.cross(p2.direction).z;
 		let sign= cross>0 ? 1 : -1;
 //		console.log("dot "+dot+" "+cross+" "+sign);
 		let angle= dist1>0 ? Math.asin((de)/dist1) : 0;

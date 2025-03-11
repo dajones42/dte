@@ -1909,7 +1909,7 @@ let testQDir= function()
 //	Also saves any modified terrain elevation data.
 let saveToRoute= function()
 {
-	if (!addToTrackDb)
+	if (!addToTrackDB)
 		myVdbid= "4123456788";
 	calcTrackPointElevations();
 	calcWire(true);
@@ -2137,7 +2137,7 @@ let saveToRoute= function()
 		let csg= Math.sqrt(1-sw.grade*sw.grade);
 		let dir= p.direction.clone();
 		if (p.forcedDirection == (end?1:1))
-			dir.negate();
+			dir.negated();
 		let angle= Math.atan2(dir.y,dir.x);
 		let grade= end ? -sw.grade : sw.grade;
 //		console.log("swend "+end+" "+sw.trackNode.ay+" "+angle+" "+
@@ -3737,7 +3737,7 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 		let p0= trackPoints[0];
 		for (let j=1; j<trackPoints.length; j++) {
 			let p1= trackPoints[j];
-			let d= p1.distanceTo(p0);
+			let d= p1.minus(p0).length();
 			if (d < .1) {
 //				if (print)
 //				console.log("close "+j+" "+prev+" "+
@@ -4488,7 +4488,7 @@ let addTrestle= function(track,cp0,cp1,lastCP)
 	let nb= 0;
 	for (let k=cp0.trackPoint+1; k<=cp1.trackPoint || nd<nBent+1; k++) {
 		let tp1= trackPoints[k];
-		let d= tp1.distanceTo(tp0);
+		let d= tp1.minus(tp0).length();
 //		console.log(" "+k+" "+d+" "+dist+" "+nd+" "+nb);
 		while (dist+d >= deck0+nd*deckSpacing) {
 			let a= (deck0+nd*deckSpacing-dist)/d;
@@ -5197,7 +5197,7 @@ let matchSignals= function()
 			let dynTrackPoints= tracks[j].dynTrackPoints;
 			for (let k=1; k<dynTrackPoints.length-1; k++) {
 				let dp= dynTrackPoints[k];
-				let d= dp.position.distanceTo(cp.position);
+				let d= dp.position.minus(cp.position).length();
 				if (d < bestd) {
 					bestd= d;
 					best= dp;

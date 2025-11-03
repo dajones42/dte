@@ -3954,16 +3954,16 @@ let addTrackPoints= function(p0,p1,points) {
 	}
 }
 
-let findWirePoint= function(cp,wireTracks)
+let findWirePoint= function(p,wireTracks,maxD)
 {
-	let bestd= 2;
+	let bestd= maxD;
 	let bestp= null;
 	for (let i=0; i<wireTracks.length; i++) {
 		let track= wireTracks[i];
 		let wirePoints= track.wirePoints;
 		for (let j=0; j<wirePoints.length; j++) {
 			let wp= wirePoints[j];
-			let d= distance(cp.position,wp);
+			let d= distance(p,wp);
 			if (d < bestd) {
 				bestd= d;
 				bestp= wp;
@@ -3990,7 +3990,7 @@ let calcWire= function(calcZ)
 				p.wireOptions= cp.wireOptions;
 			points.push(p);
 			if (j==0 || j==controlPoints.length-1) {
-				let wp= findWirePoint(cp,wireTracks);
+				let wp= findWirePoint(cp.position,wireTracks,2);
 				if (wp) {
 					p.x= wp.x;
 					p.y= wp.y;
@@ -4023,6 +4023,21 @@ let calcWire= function(calcZ)
 		for (let j=1; j<tPoints.length; j++) {
 			let p1= tPoints[j];
 			let wp= segCircInt(p0,p1,prev,len);
+			if (wp && options.match) {
+				let wp1= findWirePoint(wp,wireTracks,
+				  .3*options.length);
+				if (wp1) {
+					let dx= wp1.px*options.length;
+					let dy= wp1.py*options.length;
+					let p= segSegInt(p0,p1,
+					  { x:wp1.x-dx, y:wp1.y-dy },
+					  { x:wp1.x+dx, y:wp1.y+dy });
+					if (p.d!=0 && 0<=p.s && p.s<=1) {
+						p.a= p.s;
+						wp= p;
+					}
+				}
+			}
 			if (wp) {
 //				console.log(" wp "+wp.x+" "+wp.y+" "+wp.a);
 				wirePoints.push(wp);
@@ -4050,6 +4065,8 @@ let calcWire= function(calcZ)
 			}
 			p0= p1;
 		}
+		if (points[points.length-1].noPole)
+			wirePoints[wirePoints.length-1].noPole= true;
 		track.wirePoints= wirePoints;
 		wireTracks.push(track);
 		console.log("wire "+i+" "+points.length+" "+tPoints.length+" "+
@@ -4090,12 +4107,17 @@ let attachWireOptions= function()
 	var wireModel= document.getElementById("wiremodel").value;
 	var poleModel= document.getElementById("polemodel").value;
 	var poleSide= document.getElementById("poleside").value;
-	selected.wireOptions= {
+	let wo= {
 		length: .3048*parseFloat(length),
 		wireModel: wireModel,
 		poleModel: poleModel,
 		poleSide: parseInt(poleSide)
 	};
+	if (wo.poleSide == 2) {
+		wo.match= true;
+		wo.poleSide= 0;
+	}
+	selected.wireOptions= wo;
 	calcWire(false);
 	renderCanvas();
 }

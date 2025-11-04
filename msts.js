@@ -3236,7 +3236,7 @@ let saveTileCutFill= function()
 	if (!addToTrackDB)
 		resetTileElevation(tile);
 	let patchImages= document.getElementById("patchimagesize").value>0;
-	let path= routeDir+fspath.sep+"TILES"+fspath.sep+"t"+tile.filename;
+	let path= routeDir+fspath.sep+"SHAPES"+fspath.sep+"t"+tile.filename;
 	tile.patchModels= [];
 	calcTrackPointElevations();
 	let faces= findTrackFaces("yard");
@@ -3293,7 +3293,7 @@ let saveTileCutFill= function()
 				  tile.patchColors[i*16+j],i0,j0);
 			else
 				assignPatchColors(model,null,i0,j0);
-			if (writeCsgObj(ppath+".obj",model,i,j,patchImages))
+			if (writeCsgShape(ppath+".s",model,i,j,patchImages))
 				tile.patchModels.push([i,j]);
 		}
 	}
@@ -5774,4 +5774,155 @@ let testQDirInv= function(q1,t2,t13,t1)
 		console.error("bad qdirinv "+q2.x+" "+q2.y+" "+q2.z+" "+q2.w+
 		  " "+lenSq(q2));
 	}
+}
+
+const { Shape } = require('./shape.js');
+const { writeMstsShape } = require('./writemstsshape.js');
+
+let writeCsgShape= function(filename,model,pi,pj,patchImages)
+{
+	let getPolyType= function(poly) {
+		if (poly.shared && (typeof poly.shared)=="object")
+			return poly.shared.profile.surface;
+		return poly.shared || 0;
+	}
+	let countPolygons= function() {
+		let n= 0;
+		for (let i=0; i<model.polygons.length; i++) {
+			let poly= model.polygons[i];
+			let ptype= getPolyType(poly);
+			if (ptype===0)
+				continue;
+			n++;
+		}
+		return n;
+	}
+	let findPolygons= function(pid) {
+		let polys= [];
+		for (let i=0; i<model.polygons.length; i++) {
+			let poly= model.polygons[i];
+			let ptype= getPolyType(poly);
+			if (pid==0 &&
+			  (ptype===0 || (2000<=ptype && ptype<3000)))
+				continue;
+			if (pid>0 && ptype!==pid)
+				continue;
+			polys.push(poly);
+		}
+		return polys;
+	}
+	let findVert= function(verts,v1) {
+		let tol= .001;
+		for (let i=0; i<verts.length; i++) {
+			let v= verts[i];
+			if (v.pos.x-tol<v1.pos.x && v1.pos.x<v.pos.x+tol &&
+			  v.pos.y-tol<v1.pos.y && v1.pos.y<v.pos.y+tol &&
+			  v.pos.z-tol<v1.pos.z && v1.pos.z<v.pos.z+tol)
+				return v;
+		}
+		return null;
+	}
+	let findVerts= function(polygons) {
+		let verts= [];
+		for (let i=0; i<polygons.length; i++) {
+			let poly= polygons[i];
+			for (let j=0; j<poly.vertices.length; j++) {
+				let v= poly.vertices[j];
+				let v2= findVert(verts,v);
+				if (v2) {
+					v.id= v2.id;
+				} else {
+					v.id= verts.length;
+					verts.push(v);
+				}
+			}
+		}
+		return verts;
+	}
+	let assignVertIds= function(polygons) {
+		let verts= [];
+		for (let i=0; i<polygons.length; i++) {
+			let poly= polygons[i];
+			for (let j=0; j<poly.vertices.length; j++) {
+				let v= poly.vertices[j];
+				v.id= verts.length;
+				verts.push(v);
+				v.normal= poly.plane.normal;
+				v.shared= poly.shared;
+			}
+		}
+		return verts;
+	}
+	if (countPolygons() == 0)
+		return false;
+	let shape= new Shape(filename);
+	let addObject= function(name,pid,texture) {
+		let polygons= findPolygons(pid);
+		if (polygons.length <= 0)
+			return;
+		let verts= pid===0 ? findVerts(polygons) :
+		  assignVertIds(polygons);;
+		console.log(" addObject "+name+" "+polygons.length+" "+
+		  verts.length+" "+model.polygons.length);
+		let object= shape.addObject(name,name,texture);
+		let mesh= shape.addMesh(name);
+		let minX= 8*(16*pj-128);
+		let minY= 8*(128-16*pi);
+		for (let i=0; i<verts.length; i++) {
+			let vert= verts[i];
+			mesh.addVertex(vert.pos.x,vert.pos.y,vert.pos.z);
+			let u= (vert.pos.x-minX)/128;
+			let v= (minY-vert.pos.y)/128;
+			if (pid===0 && !patchImages) {
+				u*= 2;
+				v*= 2;
+			} else if (pid >= 2100) {
+				u*= 8;
+				v*= 8;
+			} else if (pid == 2000) {
+				let dot= -vert.normal.y*vert.pos.x +
+				  vert.normal.x*vert.pos.y;
+				u= dot/10;
+				v= vert.pos.z/10;
+			} else {
+				let p0= vert.shared.point;
+				let perp= vert.shared.perp;
+				let scale= 2*vert.shared.profile.width;
+				let x= vert.pos.x-p0.x;
+				let y= vert.pos.y-p0.y;
+				u= (vert.shared.distance - y*perp.x +
+				  x*perp.y) / scale;
+				v= .5 + (x*perp.x + y*perp.y) / scale;
+			}
+			mesh.addVertexUV(i,u,v);
+		}
+		for (let i=0; i<polygons.length; i++) {
+			let poly= polygons[i];
+			let v0= poly.vertices[0];
+			for (let j=1; j<poly.vertices.length-1; j++) {
+				let vj= poly.vertices[j];
+				let vj1= poly.vertices[j+1];
+				if (v0.id==vj.id || v0.id==vj1.id ||
+				  vj.id==vj1.id)
+					continue;
+				mesh.addFace([v0.id,vj.id,vj1.id]);
+				mesh.addSmoothFace(mesh.faces.length-1);
+			}
+		}
+	}
+	addObject("main",0,"fieldwmt.ace");
+	addObject("walls",2000,"StoneGreyCourseRough.ace");
+	addObject("tracks",2003,"roadbed.ace");
+	addObject("roads",2001,"road2lane.ace");
+	addObject("dirtroads",2002,"dirtroad.ace");
+	addObject("trees",2100,"treesmt.ace");
+	addObject("field",2101,"fieldmt.ace");
+	addObject("fieldw",2102,"fieldwmt.ace");
+	addObject("field20",2103,"field20mt.ace");
+	addObject("field40",2104,"field40mt.ace");
+	shape.addLod(2000);
+	let data= shape.getData();
+	writeMstsShape(data);
+	console.log("created "+filename);
+	return true;
 }

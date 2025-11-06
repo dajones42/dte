@@ -26,7 +26,9 @@ const fs= require('fs');
 
 const fspath= require('path');
 
-//const CSG= require('@jscad/csg');
+const { Shape } = require('./shape.js');
+const { writeMstsShape } = require('./writemstsshape.js');
+const { makeTrackShape } = require('./trackshape.js');
 
 let mstsDir= null;	// full path to MSTS directory
 let routeDir= null;	// full path to route directory
@@ -4938,19 +4940,33 @@ let getCurveMoves= function(curve)
 	return moves;
 }
 
+let bridgeRailsProfile= null;
+let ballastDeckProfile= null;
+let usTracksProfile= null;
+
 let saveBridgeTrackShape= function(dp)
 {
+	if (!bridgeRailsProfile) {
+		let path= routeDir+fspath.sep+"bridgerails.json";
+		let s= fs.readFileSync(path);
+		bridgeRailsProfile= JSON.parse(s);
+	}
+	if (!ballastDeckProfile) {
+		let path= routeDir+fspath.sep+"ballastdeck.json";
+		let s= fs.readFileSync(path);
+		ballastDeckProfile= JSON.parse(s);
+	}
 	let curve= dp.curve;
 	let filename= ((dp.bridge=="ptbd" || dp.bridge=="tdbd") ?
 	  "brdgtrackbd" : "brdgtracktd") + curve.shapeID.toFixed(0);
+	let profile= (dp.bridge=="ptbd" || dp.bridge=="tdbd") ?
+	  ballastDeckProfile : bridgeRailsProfile;
 	let moves= getCurveMoves(curve);
 	let data= { 
-	  filename: filename+".s",
+	  filename: routeDir+fspath.sep+"SHAPES"+fspath.sep+filename+".s",
 	  paths: [ { start: [0,0,0], angle: 0, moves: moves } ]
 	};
-	let s= JSON.stringify(data,null,1);
-	let path= routeDir+fspath.sep+"SHAPES"+fspath.sep+filename+".json";
-	fs.writeFileSync(path,s);
+	makeTrackShape(data,profile);
 }
 
 let saveCrossingTrackShape= function(point1)
@@ -4959,7 +4975,7 @@ let saveCrossingTrackShape= function(point1)
 	let filename= "crossing" + curve1.shapeID.toFixed(0);
 	let moves= getCurveMoves(curve1);
 	let data= {
-	  filename: filename+".s",
+	  filename: routeDir+fspath.sep+"SHAPES"+fspath.sep+filename+".s";
 	  paths: [ { start: [0,0,0], angle: 0, moves: moves } ]
 	};
 	point1.drawModel= true;
@@ -4984,9 +5000,12 @@ let saveCrossingTrackShape= function(point1)
 		if (curve1.shapeID > curve2.shapeID)
 			point1.drawModel= false;
 	}
-	let s= JSON.stringify(data,null,1);
-	let path= routeDir+fspath.sep+"SHAPES"+fspath.sep+filename+".json";
-	fs.writeFileSync(path,s);
+	if (!usTracksProfile) {
+		let path= routeDir+fspath.sep+"ustracks.json";
+		let s= fs.readFileSync(path);
+		usTracksProfile= JSON.parse(s);
+	}
+	makeTrackShape(data,usTracksProfile);
 }
 
 let makeWaterModel= function(track)
@@ -5167,14 +5186,16 @@ let saveSwitchExt= function(sw,id)
 		  moves: moves });
 	}
 	let data= { 
-	  filename: filename+".s",
+	  filename: routeDir+fspath.sep+"SHAPES"+fspath.sep+filename+".s";
 	  mainroute: 0,
 	  paths: paths
 	};
-	let s= JSON.stringify(data,null,1);
-	let path= routeDir+fspath.sep+"SHAPES"+fspath.sep+filename+".json";
-	fs.writeFileSync(path,s);
-	return filename+".s";
+	if (!usTracksProfile) {
+		let path= routeDir+fspath.sep+"ustracks.json";
+		let s= fs.readFileSync(path);
+		usTracksProfile= JSON.parse(s);
+	}
+	makeTrackShape(data,usTracksProfile);
 }
 
 let matchSignals= function()
@@ -5775,9 +5796,6 @@ let testQDirInv= function(q1,t2,t13,t1)
 		  " "+lenSq(q2));
 	}
 }
-
-const { Shape } = require('./shape.js');
-const { writeMstsShape } = require('./writemstsshape.js');
 
 let writeCsgShape= function(filename,model,pi,pj,patchImages)
 {

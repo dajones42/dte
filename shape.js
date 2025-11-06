@@ -440,7 +440,7 @@ class HipRoof extends Mesh {
 }
 
 // data for Blender object
-class ShapeObject {
+class Object {
 	constructor(meshName,texture) {
 		this.mesh= meshName;
 		this.texture= texture;
@@ -504,7 +504,7 @@ class Shape {
 			console.error("object "+name+" already exists");
 			return null;
 		}
-		let obj= new ShapeObject(meshName,texture);
+		let obj= new Object(meshName,texture);
 		obj.name= name;
 		this.objMap[name]= obj;
 		this.objArray.push(obj);

@@ -3482,11 +3482,14 @@ let calcTrackPointElevations= function()
 		let cp1= controlPoints[1];
 		let tp0= trackPoints[cp0.trackPoint];
 		tp0.z= interpElevation(cp0,cp1,0);
+//		if (track == selectedTrack)
+//			console.log("tp0z "+tp0.z);
 		for (let j=1; j<dynTrackPoints.length; j++) {
 			dp1= dynTrackPoints[j];
 			let dist= dp0.distance;
 			for (let k=dp0.trackPoint+1; k<=dp1.trackPoint; k++) {
 				let tp1= trackPoints[k];
+				tp1.z= tp0.z;
 				dist+= tp1.minus(tp0).length();
 				if (dist > dp1.distance)
 					dist= dp1.distance;
@@ -3494,6 +3497,9 @@ let calcTrackPointElevations= function()
 				  (dp1.distance-dp0.distance);
 				tp1.z= a*dp1.elevation + (1-a)*dp0.elevation;
 				tp0= tp1;
+//				if (track == selectedTrack)
+//					console.log("tp1z "+tp1.z+" "+dist+" "+
+//					  j+" "+k+" "+a);
 			}
 			dp0= dp1;
 		}

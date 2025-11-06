@@ -2947,13 +2947,11 @@ let savePatchImage= function(tile,tpm,mtdata)
 			continue;
 		}
 //		console.log("sw "+i);
-		let d1= p1.clone().sub(p0);
-		d1.normalize();
-		let d2= p2.clone().sub(p0);
-		d2.normalize();
-		p0= p0.clone().sub(d1);
-		p1= p1.clone().add(d1);
-		p2= p2.clone().add(d2);
+		let d1= p1.minus(p0).unit();
+		let d2= p2.minus(p0).unit();
+		p0= p0.minus(d1);
+		p1= p1.plus(d1);
+		p2= p2.plus(d2);
 		let perp= new CSG.Vector(p0.y-p1.y,p1.x-p0.x,0).unit();
 		setProfile(track1.type);
 		context.beginPath();
@@ -3848,13 +3846,11 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 		}
 		trackPid++;
 //		console.log("sw "+i);
-		let d1= p1.clone().sub(p0);
-		d1.normalize();
-		let d2= p2.clone().sub(p0);
-		d2.normalize();
-		p0= p0.clone().sub(d1);
-		p1= p1.clone().add(d1);
-		p2= p2.clone().add(d2);
+		let d1= p1.minus(p0).unit();
+		let d2= p2.minus(p0).unit();
+		p0= p0.minus(d1);
+		p1= p1.plus(d1);
+		p2= p2.plus(d2);
 		let perp= new CSG.Vector(p0.y-p1.y,p1.x-p0.x,0).unit();
 		setProfile(track0.type);
 		addVerts(p0,perp.x,perp.y,0);
@@ -4975,7 +4971,7 @@ let saveCrossingTrackShape= function(point1)
 	let filename= "crossing" + curve1.shapeID.toFixed(0);
 	let moves= getCurveMoves(curve1);
 	let data= {
-	  filename: routeDir+fspath.sep+"SHAPES"+fspath.sep+filename+".s";
+	  filename: routeDir+fspath.sep+"SHAPES"+fspath.sep+filename+".s",
 	  paths: [ { start: [0,0,0], angle: 0, moves: moves } ]
 	};
 	point1.drawModel= true;
@@ -5186,7 +5182,7 @@ let saveSwitchExt= function(sw,id)
 		  moves: moves });
 	}
 	let data= { 
-	  filename: routeDir+fspath.sep+"SHAPES"+fspath.sep+filename+".s";
+	  filename: routeDir+fspath.sep+"SHAPES"+fspath.sep+filename+".s",
 	  mainroute: 0,
 	  paths: paths
 	};

@@ -137,7 +137,7 @@ let setupMenu= function() {
 			click: toggleOverpass
 		}));
 		editMenu.append(new nw.MenuItem({
-			label: 'No Cut',
+			label: 'Cut',
 			click: toggleNoCut
 		}));
 		editMenu.append(new nw.MenuItem({
@@ -169,11 +169,11 @@ let setupMenu= function() {
 			click: setCrossingLevel
 		}));
 		editMenu.append(new nw.MenuItem({
-			label: 'Cut',
+			label: 'Cut Terrain',
 			click: cutTerrain
 		}));
 		editMenu.append(new nw.MenuItem({
-			label: 'Fill&Cut',
+			label: 'Fill&Cut Terrain',
 			click: fillTerrain
 		}));
 //	editMenu.append(new nw.MenuItem({

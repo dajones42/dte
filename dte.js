@@ -1430,7 +1430,7 @@ let toggleOverpass= function()
 }
 
 //	Implements the Edit menu No Cut function.
-//	Toggles the selected control point has noCut value.
+//	Toggles the selected patch point has noCut value.
 let toggleNoCut= function()
 {
 	let tx= centerTX + Math.round(centerU/2048);
@@ -1450,7 +1450,7 @@ let toggleNoCut= function()
 				return;
 			}
 		}
-		tile.noCut.push({ i:pi, j:pj, value:true });
+		tile.noCut.push({ i:pi, j:pj, value:false });
 	}
 	saveNoCut();
 	renderCanvas();
@@ -1516,25 +1516,29 @@ let movePointAway= function(p,dist,p1,p2)
 	}
 }
 
-//	returns the terrain elevation given internal u/v coordinates.
-let getElevation= function(u,v,orig)
+//	returns the tile coordinates given internal u/v coordinates.
+let getTileCoords= function(u,v)
 {
 	let tx= centerTX + Math.round(u/2048);
 	let tz= centerTZ + Math.round(v/2048);
 	let x= u - 2048*(tx-centerTX);
 	let z= v - 2048*(tz-centerTZ);
-//	console.log("ge "+tx+" "+tz+" "+x+" "+z);
-	return getTileElevation(tx,tz,x,z,orig);
+//	console.log("tc "+tx+" "+tz+" "+x+" "+z+" "+u+" "+v);
+	return { tx:tx, tz:tz, x:x, z:z };
+}
+
+//	returns the terrain elevation given internal u/v coordinates.
+let getElevation= function(u,v,orig)
+{
+	let tc= getTileCoords(u,v);
+	return getTileElevation(tc.tx,tc.tz,tc.x,tc.z,orig);
 }
 
 //	sets the terrain elevation given internal u/v coordinates.
 let setElevation= function(u,v,elev)
 {
-	let tx= centerTX + Math.round(u/2048);
-	let tz= centerTZ + Math.round(v/2048);
-	let x= u - 2048*(tx-centerTX);
-	let z= v - 2048*(tz-centerTZ);
-	setTileElevation(tx,tz,x,z,elev);
+	let tc= getTileCoords(u,v);
+	setTileElevation(tc.tx,tc.tz,tc.x,tc.z,elev);
 }
 
 //	Calculates the distance of control points down the track.

@@ -786,7 +786,7 @@ let setTileElevation= function(tx,tz,x,z,elev)
 	let z0= 8*(128-i);
 	let wx= (x-x0)/8;
 	let wz= (z-z0)/8;
-	console.log("sette "+tx+" "+tz+" "+x+" "+z+" "+i+" "+j+" "+wx+" "+wz);
+//	console.log("sette "+tx+" "+tz+" "+x+" "+z+" "+i+" "+j+" "+wx+" "+wz);
 	let tile= findTile(tx,tz);
 	if (!tile)
 		return 0;
@@ -3239,6 +3239,7 @@ let saveTileCutFill= function()
 	let path= routeDir+fspath.sep+"SHAPES"+fspath.sep+"t"+tile.filename;
 	tile.patchModels= [];
 	calcTrackPointElevations();
+	lowerTerrain(tile);
 	let faces= findTrackFaces("yard");
 	for (let i=0; i<16; i++) {
 		for (let j=0; j<16; j++) {
@@ -3249,7 +3250,7 @@ let saveTileCutFill= function()
 			let ppath= path+"_"+i+"_"+j;
 			console.log("patch "+tx+" "+tz+" "+i+" "+j+" "+i0+
 			  " "+j0+" "+countPatchTrackPoints(tile,i0,j0));
-			let noCut= false;
+			let noCut= true;
 			for (let k=0; tile.noCut && k<tile.noCut.length; k++) {
 				let tnc= tile.noCut[k];
 				if (tnc.i==i && tnc.j==j) {
@@ -3280,10 +3281,11 @@ let saveTileCutFill= function()
 			let fbox= clipPolygons(fill,bBox,false);
 			console.log(" fbox "+fbox.polygons.length);
 			//writeCsgObj(ppath+"_fbox.obj",fbox);
-			model= cutFillBySquare(i0,j0,model,cut,fbox,
-			  tx,tz,opCut,patchImages);
-			if (noCut)
+			if (noCut || (cut.length==0 && opCut.length==0))
 				model= fbox;
+			else
+				model= cutFillBySquare(i0,j0,model,cut,fbox,
+				  tx,tz,opCut,patchImages);
 			console.log(" polys "+model.polygons.length);
 			if (!patchImages)
 //				adjustPatchPolygons(model);
@@ -3443,7 +3445,7 @@ let makePatchModel= function(tile,i0,j0)
 	return CSG.fromPolygons(polys);
 }
 
-let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
+let getCutFillProfile= function(trackType)
 {
 	let profiles = {
 	  branch: {
@@ -3475,7 +3477,18 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 		fill: { depth: 0, width: 2.5, slope: 1.5, surface: 2002 },
 	  }
 	};
-	let profile= profiles.branch;
+	let profile= null;
+	if (trackType && profiles[trackType])
+		profile= profiles[trackType];
+	else
+		profile= profiles.branch;
+//	console.log("getprof "+trackType+" "+profile.cut.depth);
+	return profile;
+}
+
+let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
+{
+	let profile= getCutFillProfile("branch");
 	let normal= new CSG.Vector([0,0,1]);
 	let polys= [];
 	let verts= [];
@@ -3581,11 +3594,7 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 		}
 	}
 	let setProfile= function(type) {
-		if (type && profiles[type])
-			profile= profiles[type];
-		else
-			profile= profiles.branch;
-//		console.log("setprof "+type+" "+profile.cut.depth);
+		profile= getCutFillProfile(type);
 	}
 	let addModelCutFill= function(point) {
 		if (overpass)
@@ -3701,7 +3710,7 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 		  track.type=="paint" || track.type=="wire" ||
 		  track.type=="forest")
 			continue;
-		setProfile(track.type);
+		profile= getCutFillProfile(track.type);
 		if (!overpass)
 			trackPid++;
 //		if (cut)
@@ -5939,4 +5948,281 @@ let writeCsgShape= function(filename,model,pi,pj,patchImages)
 	writeMstsShape(data);
 	console.log("created "+filename);
 	return true;
+}
+
+//	returns x1 and x2 that minimize (u1-x1)^2 + (u2-x2)^2
+//	such that x1<=u1, x2<=u2 and a1*x1+a2*x2<=b.
+let lsOpt2= function(a1,a2,b,u1,u2)
+{
+	if (a1*u1 + a2*u2 <= b)
+		return { x1:u1, x2:u2, v:0 };
+	if (a1 > a2) {
+		let r= lsOpt2(a2,a1,b,u2,u1);
+		return { x1:r.x2, x2:r.x1, v:r.v };
+	}
+	let a2sq= a2*a2;
+	let x1= (b*a1/a2sq + u1 - u2*a1/a2) / (a1*a1/a2sq + 1);
+	let x2= (b - a1*x1) / a2;
+	let d1= u1-x1;
+	let d2= u2-x2;
+	if (d1<0 || d2<0 || a1*x1+a2*x2>b+.001)
+		console.error("lsopt2 "+a1+" "+a2+" "+b+" "+u1+" "+u2+" "+
+		  x1+" "+x2+" "+d1+" "+d2+" "+(a1*x1+a2*x2));
+	return { x1:x1, x2:x2, v:d1*d1+d2*d2 };
+}
+
+let lowerTerrain= function(tile)
+{
+	let tx0= 2048*(tile.x-centerTX);
+	let tz0= 2048*(tile.z-centerTZ);
+	let minX= tx0-1024;
+	let minY= tz0-1024;
+	let maxX= tx0+1024;
+	let maxY= tz0+1024;
+	console.log("start lt"+tx0+" "+tz0+" "+minX+" "+minY+" "+maxX+" "+maxY);
+	let print= false;
+	let cutDepth= 0;
+	let setSideElevation= function(x0,y0,z0,dx,dy,slope) {
+		let dd= Math.sqrt(dx*dx+dy*dy);
+		for (let i=0; i<256; i++) {
+			let x= x0 + i*dx;
+			let y= y0 + i*dy;
+			if (x<minX || x>maxX || y<minY || y>maxY)
+				return i;
+			let e= getElevation(x,y,false);
+			let max= z0 + i*dd*slope;
+			if (print)
+				console.log(" setside "+i+" "+
+				  x.toFixed(3)+" "+y.toFixed(3)+" "+
+				  z0.toFixed(3)+" "+e.toFixed(3)+" "+
+				  max.toFixed(3));
+			if (e > max)
+				setElevation(x,y,max);
+			else
+				return i;
+			console.log(" setside "+i+" "+
+			  x.toFixed(3)+" "+y.toFixed(3)+" "+
+			  z0.toFixed(3)+" "+e.toFixed(3)+" "+
+			  max.toFixed(3)+" "+(e-max));
+			if (cutDepth < e-max)
+				cutDepth= e-max;
+		}
+		return 256;
+	}
+	let setBottomElevation= function(x1,y1,x2,y2,z,dx1,dx2,dy1,dy2) {
+		let dx= x2-x1;
+		let dy= y2-y1;
+		let d= Math.sqrt(dx*dx+dy*dy);
+		let d1= Math.sqrt(dx1*dx1+dy1*dy1);
+		let d2= Math.sqrt(dx2*dx2+dy2*dy2);
+		let e1= getElevation(x1,y1,false);
+		let e2= getElevation(x2,y2,false);
+		let step= dx!=0 && dy!=0 ? 8*Math.sqrt(2) : 8;
+		if (print)
+			console.log(" setbottom "+x1.toFixed(3)+" "+
+			  y1.toFixed(3)+" "+x2.toFixed(3)+" "+y2.toFixed(3)+
+			  " "+d.toFixed(3));
+		if (print)
+			console.log(" setbottomd "+d1.toFixed(3)+" "+
+			  d2.toFixed(3)+" "+dx1.toFixed(3)+" "+dy1.toFixed(3)+
+			  " "+dx2.toFixed(3)+" "+dy2.toFixed(3)+" "+
+			  step.toFixed(3)+" "+(d-d1-d2).toFixed(3));
+		if (d < 12) {
+			if (print)
+				console.log(" setbottom1 "+d.toFixed(3)+" "+
+				  e1.toFixed(3)+" "+e2.toFixed(3)+" "+
+				  z.toFixed(3));
+			if (e1>z && e2>z) {
+				setElevation(x1,y1,z);
+				setElevation(x2,y2,z);
+			} else if (e1 > z) {
+				let opt1=
+				  lsOpt2((step-d1)/step,d1/step,z,z,e2);
+				if (print)
+					console.log(" setbottom1 "+
+					  opt1.v.toFixed(3)+" "+
+					  opt1.x1.toFixed(3)+" "+
+					  opt1.x2.toFixed(3));
+				setElevation(x1,y1,opt1.x1);
+				setElevation(x2,y2,opt1.x2);
+			} else if (e2 > z) {
+				let opt2=
+				  lsOpt2(d2/step,(step-d2)/step,z,e1,z);
+				if (print)
+					console.log(" setbottom2 "+
+					  opt2.v.toFixed(3)+" "+
+					  opt2.x1.toFixed(3)+" "+
+					  opt2.x2.toFixed(3));
+				setElevation(x1,y1,opt2.x1);
+				setElevation(x2,y2,opt2.x2);
+			}
+		} else if (d < 23) {
+			let xm= (x1+x2)/2;
+			let ym= (y1+y2)/2;
+			let em= getElevation(xm,ym,false);
+			if (em > z)
+				em= z;
+			let opt1= lsOpt2((step-d1)/step,d1/step,z,e1,em);
+			let opt2= lsOpt2(d2/step,(step-d2)/step,z,em,e2);
+			setElevation(x1,y1,opt1.x1);
+			setElevation(x2,y2,opt2.x2);
+			let zm= opt1.x2<opt2.x1 ? opt1.x2 : opt2.x1;
+			setElevation(xm,ym,zm);
+			if (print)
+				console.log(" setbottom2 "+xm.toFixed(3)+" "+
+				  ym.toFixed(3)+" "+e1.toFixed(3)+" "+
+				  em.toFixed(3)+" "+e2.toFixed(3)+" "+
+				  z.toFixed(3)+" "+opt1.x1.toFixed(3)+" "+
+				  zm.toFixed(3)+" "+opt2.x2.toFixed(3));
+		} else {
+			let xm1= (2*x1+x2)/3;
+			let ym1= (2*y1+y2)/3;
+			let em1= getElevation(xm1,ym1,false);
+			if (em1 > z)
+				em1= z;
+			let xm2= (x1+2*x2)/3;
+			let ym2= (y1+2*y2)/3;
+			let em2= getElevation(xm2,ym2,false);
+			if (em2 > z)
+				em2= z;
+			let opt1= lsOpt2((step-d1)/step,d1/step,z,e1,em1);
+			let opt2= lsOpt2(d2/step,(step-d2)/step,z,em2,e2);
+			setElevation(x1,y1,opt1.x1);
+			setElevation(x2,y2,opt2.x2);
+			setElevation(xm1,ym1,opt1.x2);
+			setElevation(xm2,ym2,opt2.x1);
+			if (print)
+				console.log(" setbottom3a "+xm1.toFixed(3)+" "+
+				  ym1.toFixed(3)+" "+e1.toFixed(3)+" "+
+				  d1.toFixed(3)+" "+em1.toFixed(3)+" "+
+				  z.toFixed(3)+" "+opt1.x1.toFixed(3)+" "+
+				  opt1.x2.toFixed(3));
+			if (print)
+				console.log(" setbottom3b "+xm2.toFixed(3)+" "+
+				  ym2.toFixed(3)+" "+e2.toFixed(3)+" "+
+				  d2.toFixed(3)+" "+em2.toFixed(3)+" "+
+				  z.toFixed(3)+" "+opt2.x1.toFixed(3)+" "+
+				  opt2.x2.toFixed(3));
+		}
+	}
+	let setSegSegElevation= function(p0,p1,p2,p3,dx,dy,profile,dir) {
+		let pi= segSegInt(p0,p1,p2,p3);
+		if (pi.d==0 || pi.s<0 || pi.s>1)
+			return;
+		//print= -2830<pi.x && pi.x<-2810 && -1700<pi.y && pi.y<-1680;
+		if (print)
+			console.log("pi "+pi.x.toFixed(3)+" "+
+			  pi.y.toFixed(3)+" "+dx+" "+dy+" "+
+			  dir.x.toFixed(3)+" "+dir.y.toFixed(3));
+		let perp= new CSG.Vector(-dy,dx,0).unit();
+		let scale= 1/Math.abs(dir.dot(perp));
+		let w= profile.width*scale/Math.sqrt(dx*dx+dy*dy);
+		let slope= profile.slope/scale;
+		if (print)
+			console.log(" "+scale.toFixed(3)+" "+w.toFixed(3)+" "+
+			  slope.toFixed(3)+" "+dir.dot(perp).toFixed(3));
+		let z= p0.z + pi.s*(p1.z-p0.z) - profile.depth;
+		let x1= pi.x - dx*w;
+		let x2= pi.x + dx*w;
+		let y1= pi.y - dy*w;
+		let y2= pi.y + dy*w;
+		let xa= 8*Math.floor(x1/8);//dx always >=0
+		let xb= 8*Math.ceil(x2/8);
+		let dxa= x1 - xa;
+		let dxb= xb - x2;
+		let ya= 8*(dy<0?Math.ceil(y1/8):Math.floor(y1/8));
+		let yb= 8*(dy<0?Math.floor(y2/8):Math.ceil(y2/8));
+		let dya= y1 - ya;
+		let dyb= yb - y2;
+		if (print)
+			console.log(" x "+xa.toFixed(3)+" "+
+			  x1.toFixed(3)+" "+x2.toFixed(3)+" "+xb.toFixed(3));
+		if (print)
+			console.log(" y "+ya.toFixed(3)+" "+
+			  y1.toFixed(3)+" "+y2.toFixed(3)+" "+yb.toFixed(3));
+		let da= Math.sqrt(dxa*dxa+dya*dya);
+		let db= Math.sqrt(dxb*dxb+dyb*dyb);
+		let za= z + slope*da;
+		let zb= z + slope*db;
+		if (print)
+			console.log(" z "+z.toFixed(3)+" "+
+			  za.toFixed(3)+" "+zb.toFixed(3));
+		setSideElevation(xa,ya,za,-8*dx,-8*dy,slope);
+		setSideElevation(xb,yb,zb,8*dx,8*dy,slope);
+		setBottomElevation(xa,ya,xb,yb,z,dxa,dxb,dya,dyb);
+	}
+	let adjustTerrain= function(p0,p1,profile) {
+		if ((p0.x<minX && p1.x<minX) ||
+		  (p0.x>maxX && p1.x>maxX) ||
+		  (p0.y<minY && p1.y<minY) ||
+		  (p0.y>maxY && p1.y>maxY))
+			return;
+		let dir= p1.minus(p0);
+		let stepSize= 8;
+		let steps= Math.ceil(dir.length()/stepSize);
+		let step= dir.times(1/steps);
+		dir.z= 0;
+		dir= dir.unit();
+		let p2= p0;
+		for (let i=0; i<steps; i++) {
+			let p3= p2.plus(step);
+			if (Math.abs(dir.x) >= Math.abs(dir.y)) {
+				for (let x=minX; x<maxX; x+=8) {
+					setSegSegElevation(p2,p3,
+					  {x:x,y:minY},{x:x,y:maxY},
+					  0,1,profile,dir);
+				}
+			}
+			if ((dir.x>0 && dir.y>0) || (dir.x<0 && dir.y<0)) {
+				for (let x=minX-2048; x<maxX; x+=8) {
+					setSegSegElevation(p2,p3,
+					  {x:x,y:maxY},{x:x+2048,y:minY},
+					  1,-1,profile,dir);
+				}
+			}
+			if (Math.abs(dir.y) >= Math.abs(dir.x)) {
+				for (let y=minY; y<maxY; y+=8) {
+					setSegSegElevation(p2,p3,
+					  {x:minX,y:y},{x:maxX,y:y},
+					  1,0,profile,dir);
+				}
+			}
+			if ((dir.x<0 && dir.y>0) || (dir.x>0 && dir.y<0)) {
+				for (let y=minY-2048; y<maxY; y+=8) {
+					setSegSegElevation(p2,p3,
+					  {x:minX,y:y},{x:maxX,y:y+2048},
+					  1,1,profile,dir);
+				}
+			}
+			p2= p3;
+		}
+	}
+	for (let i=0; i<tracks.length; i++) {
+		let track= tracks[i];
+		if (track.type == "water" || track.type=="contour" ||
+		  track.type=="paint" || track.type=="wire" ||
+		  track.type=="forest")
+			continue;
+		let profile= getCutFillProfile(track.type).cut;
+		let trackPoints= track.trackPoints;
+		for (let j=1; j<trackPoints.length; j++) {
+			let p0= trackPoints[j-1];
+			let p1= trackPoints[j];
+			cutDepth= 0;
+			adjustTerrain(p0,p1,profile);
+			p0.cutDepth= cutDepth;
+		}
+	}
+	for (let i=0; i<switches.length; i++) {
+		let sw= switches[i];
+		let p0= sw.points[0].position;
+		let p1= sw.points[1].position;
+		let p2= sw.points[2].position;
+		let track1= findTrack(sw.points[1]);
+		let track2= findTrack(sw.points[2]);
+		let profile= getCutFillProfile(track1.type).cut;
+		adjustTerrain(p0,p1,profile);
+		profile= getCutFillProfile(track2.type).cut;
+		adjustTerrain(p0,p2,profile);
+	}
 }

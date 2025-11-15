@@ -148,7 +148,7 @@ let renderMap= function()
 		let tile= tiles[i];
 		for (let j=0; tile.noCut && j<tile.noCut.length; j++) {
 			let tnc= tile.noCut[j];
-			if (tnc.value) {
+			if (!tnc.value) {
 				let u= (2048*(tile.x-centerTX)-1024-centerU+
 				  128*tnc.j)*scale + width/2;
 				let v= height/2 -

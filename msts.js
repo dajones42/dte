@@ -1978,7 +1978,8 @@ let saveToRoute= function()
 		  track.type == "road" || track.type == "road1" ||
 		  track.type == "dirtroad" || track.type == "dirtroad1" ||
 		  track.type=="contour" || track.type=="paint" ||
-		  track.type=="wire" || track.type=="forest")
+		  track.type=="wire" || track.type=="forest" ||
+		  track.type=="cut")
 			continue;
 		let dynTrackPoints= track.dynTrackPoints;
 		for (let j=0; j<dynTrackPoints.length-1; j++) {
@@ -2291,7 +2292,8 @@ let saveToRoute= function()
 		  track.type == "road" || track.type == "road1" ||
 		  track.type == "dirtroad" || track.type == "dirtroad1" ||
 		  track.type=="contour" || track.type=="paint" ||
-		  track.type=="wire" || track.type=="forest")
+		  track.type=="wire" || track.type=="forest" ||
+		  track.type=="cut")
 			continue;
 		let dynTrackPoints= track.dynTrackPoints;
 		let controlPoints= track.controlPoints;
@@ -2350,6 +2352,7 @@ let saveToRoute= function()
 		let track= tracks[i];
 		if (track.type == "water" || track.type=="contour" ||
 		  track.type=="paint" || track.type=="wire" ||
+		  track.type=="cut" ||
 		  (track.type=="forest" && track.controlPoints.length>1))
 			continue;
 		let controlPoints= track.controlPoints;
@@ -2887,7 +2890,7 @@ let savePatchImage= function(tile,tpm,mtdata)
 		let track= tracks[i];
 		if (track.type == "water" || track.type=="contour" ||
 		  track.type=="paint" || track.type=="wire" ||
-		  track.type=="forest")
+		  track.type=="forest" || track.type=="cut")
 			continue;
 		setProfile(track.type);
 		let controlPoints= track.controlPoints;
@@ -3270,6 +3273,9 @@ let saveTileCutFill= function()
 			for (let k=0; k<cut.length; k++)
 				nextID+= cut[k].length;
 			console.log(" cut csgs "+cut.length);
+			let cutPolygon= findCutPolygon(tile,i0,j0);
+			if (cutPolygon)
+				console.log(" cut polygon "+cutPolygon);
 			let opCut= makeCutFillModel(tile,i0,j0,true,nextID,
 			  faces,true);
 			console.log(" opcut csgs "+opCut.length);
@@ -3285,7 +3291,7 @@ let saveTileCutFill= function()
 				model= fbox;
 			else
 				model= cutFillBySquare(i0,j0,model,cut,fbox,
-				  tx,tz,opCut,patchImages);
+				  tx,tz,opCut,patchImages,cutPolygon);
 			console.log(" polys "+model.polygons.length);
 			if (!patchImages)
 //				adjustPatchPolygons(model);
@@ -3326,7 +3332,7 @@ let countPatchTrackPoints= function(tile,i0,j0)
 		let track= tracks[i];
 		if (track.type == "water" || track.type=="contour" ||
 		  track.type=="paint" || track.type=="wire" ||
-		  track.type=="forest")
+		  track.type=="forest" || track.type=="cut")
 			continue;
 		track.nearPatch= false;
 		let m= 0;
@@ -3708,7 +3714,7 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 		let track= tracks[i];
 		if (track.type == "water" || track.type=="contour" ||
 		  track.type=="paint" || track.type=="wire" ||
-		  track.type=="forest")
+		  track.type=="forest" || track.type=="cut")
 			continue;
 		profile= getCutFillProfile(track.type);
 		if (!overpass)
@@ -4227,8 +4233,19 @@ let writeCsgObj= function(filename,model,pi,pj,patchImages)
 	return true;
 }
 
-let cutFillBySquare= function(i0,j0,model,cut,fill,tx,tz,opCut,patchImages)
+let cutFillBySquare= function(i0,j0,model,cut,fill,tx,tz,opCut,patchImages,
+  cutPolygon)
 {
+	let overlap= function(polygon) {
+		if (!cutPolygon)
+			return true;
+		for (let i=0; i<polygon.vertices.length; i++) {
+			let p= polygon.vertices[i].pos;
+			if (pointInPolygon(p,cutPolygon))
+				return true;
+		}
+		return false;
+	}
 	let polys= [];
 	let ncut= 0;
 //	for (let i=2; i<4; i++) {
@@ -4276,13 +4293,13 @@ let cutFillBySquare= function(i0,j0,model,cut,fill,tx,tz,opCut,patchImages)
 			}
 			for (let k=0; k<sq.polygons.length; k++) {
 				let poly= sq.polygons[k];
-				if (poly.shared) {
+				if (poly.shared && overlap(poly)) {
 					polys.push(poly);
 				}
 			}
-			if (!patchImages)
-				setSquareElevation(tx,tz,i0+i,j0+j,
-				  sq.polygons);
+//			if (!patchImages)
+//				setSquareElevation(tx,tz,i0+i,j0+j,
+//				  sq.polygons);
 			if (opCut.length > 0) {
 				for (let k=0; k<fbox.polygons.length; k++) {
 					let poly= fbox.polygons[k];
@@ -5981,7 +5998,6 @@ let lowerTerrain= function(tile)
 	let maxY= tz0+1024;
 	console.log("start lt"+tx0+" "+tz0+" "+minX+" "+minY+" "+maxX+" "+maxY);
 	let print= false;
-	let cutDepth= 0;
 	let setSideElevation= function(x0,y0,z0,dx,dy,slope) {
 		let dd= Math.sqrt(dx*dx+dy*dy);
 		for (let i=0; i<256; i++) {
@@ -6000,12 +6016,10 @@ let lowerTerrain= function(tile)
 				setElevation(x,y,max);
 			else
 				return i;
-			console.log(" setside "+i+" "+
-			  x.toFixed(3)+" "+y.toFixed(3)+" "+
-			  z0.toFixed(3)+" "+e.toFixed(3)+" "+
-			  max.toFixed(3)+" "+(e-max));
-			if (cutDepth < e-max)
-				cutDepth= e-max;
+//			console.log(" setside "+i+" "+
+//			  x.toFixed(3)+" "+y.toFixed(3)+" "+
+//			  z0.toFixed(3)+" "+e.toFixed(3)+" "+
+//			  max.toFixed(3)+" "+(e-max));
 		}
 		return 256;
 	}
@@ -6201,16 +6215,14 @@ let lowerTerrain= function(tile)
 		let track= tracks[i];
 		if (track.type == "water" || track.type=="contour" ||
 		  track.type=="paint" || track.type=="wire" ||
-		  track.type=="forest")
+		  track.type=="forest" || track.type=="cut")
 			continue;
 		let profile= getCutFillProfile(track.type).cut;
 		let trackPoints= track.trackPoints;
 		for (let j=1; j<trackPoints.length; j++) {
 			let p0= trackPoints[j-1];
 			let p1= trackPoints[j];
-			cutDepth= 0;
 			adjustTerrain(p0,p1,profile);
-			p0.cutDepth= cutDepth;
 		}
 	}
 	for (let i=0; i<switches.length; i++) {
@@ -6225,4 +6237,58 @@ let lowerTerrain= function(tile)
 		profile= getCutFillProfile(track2.type).cut;
 		adjustTerrain(p0,p2,profile);
 	}
+}
+
+let findCutPolygon= function(tile,i0,j0)
+{
+	let x0= 2048*(tile.x-centerTX);
+	let z0= 2048*(tile.z-centerTZ);
+	let minX= x0 + 8*(j0-128);
+	let maxX= x0 + 8*(j0+16-128);
+	let minY= z0 + 8*(128-16-i0);
+	let maxY= z0 + 8*(128-i0);
+	console.log("findcutpoly "+minX+" "+maxX+" "+minY+" "+maxY);
+	let expandBox= function(p,v,box) {
+		if (box.min[v] > p[v])
+			box.min[v]= p[v];
+		if (box.max[v] < p[v])
+			box.max[v]= p[v];
+	}
+	let overlap= function(polygon) {
+		for (let i=0; i<=16; i++) {
+			for (let j=0; j<=16; j++) {
+				let x= x0 + 8*(j0+j-128);
+				let y= z0 + 8*(128-i-i0);
+				x= 8*(j0+j-128);
+				y= 8*(128-i-i0);
+				if (pointInPolygon({x:x,y:y},polygon))
+					return true;
+			}
+		}
+		return false;
+	}
+	for (let i=0; i<tracks.length; i++) {
+		let track= tracks[i];
+		if (track.type != "cut")
+			continue;
+		let controlPoints= track.controlPoints;
+		if (controlPoints.length < 3)
+			continue;
+		let polygon= [];
+		let box= { min: new CSG.Vector(1e10,1e10,1e10),
+		  max: new CSG.Vector(-1e10,-1e10,-1e10) };
+		for (let j=0; j<controlPoints.length; j++) {
+			let p= controlPoints[j].position;
+			polygon.push({x:p.x-x0, y:p.y-z0});
+			expandBox(p,"x",box);
+			expandBox(p,"y",box);
+			expandBox(p,"z",box);
+		}
+		if (maxX<box.min.x || maxY<box.min.y ||
+		  minX>box.max.x || minY>box.max.y)
+			continue;
+		if (overlap(polygon))
+			return polygon;
+	}
+	return null;
 }

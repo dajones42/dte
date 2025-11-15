@@ -3867,7 +3867,7 @@ let findTrackPoint= function(cp,calcZ)
 			continue;
 		if (track.type=="wire" || track.type=="water" ||
 		  track.type=="contour" || track.type=="paint" ||
-		  track.type=="forest")
+		  track.type=="forest" || track.type=="cut")
 			continue;
 		let trackPoints= track.trackPoints;
 		let p0= trackPoints[0];

@@ -333,13 +333,15 @@ let renderMap= function()
 //				  cp.trackPoint);
 		}
 		let straight= 0;
-		if (track.type=="contour" ||
+		if (track.type=="contour" || track.type=="cut"||
 		  track.type=="wire" || track.type=="forest") {
 			context.strokeStyle= "brown";
 			if (track.type=="wire")
 				context.strokeStyle= "magenta";
 			else if (track.type=="forest")
 				context.strokeStyle= "green";
+			else if (track.type=="cut")
+				context.strokeStyle= "orange";
 			if (track.wirePoints) {
 				for (let i=0; i<track.wirePoints.length; i++) {
 					let wp= track.wirePoints[i];
@@ -995,7 +997,8 @@ let rotateMapOverlay= function(da)
 let constrainDrag= function()
 {
 	if (!dragging || selectedTrack.type=="contour" ||
-	  selectedTrack.type=="wire" || selectedTrack.type=="forest")
+	  selectedTrack.type=="wire" || selectedTrack.type=="forest" ||
+	  selectedTrack.type=="cut")
 		return;
 	let controlPoints= selectedTrack.controlPoints;
 	let i= controlPoints.indexOf(dragging);

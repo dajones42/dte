@@ -5997,6 +5997,35 @@ let lowerTerrain= function(tile)
 	let maxX= tx0+1024;
 	let maxY= tz0+1024;
 	console.log("start lt"+tx0+" "+tz0+" "+minX+" "+minY+" "+maxX+" "+maxY);
+	let variables= [];
+	let constraints= [];
+	let findVar= function(x,y,u) {
+		for (let i=0; i<variables.length; i++) {
+			let v= variables[i];
+			if (v.x==x && v.y==y)
+				return v;
+		}
+		let v= { x:x, y:y, u:u, e:u };
+		variables.push(v);
+		return v;
+	}
+	let saveConstraint= function(a1,a2,b,u1,u2,x1,y1,x2,y2) {
+		let opt= lsOpt2(a1,a2,b,u1,u2);
+		let v1= findVar(x1,y1,u1);
+		if (a2 == 0) {
+			if (v1.u > b)
+				v1.u= v1.e= b;
+			return opt;
+		}
+		let v2= findVar(x2,y2,u2);
+		let c= { v1:v1, v2:v2, a1:a1, a2:a2, b:b };
+		constraints.push(c);
+		if (v1.e > opt.x1)
+			v1.e= opt.x1;
+		if (v2.e > opt.x2)
+			v2.e= opt.x2;
+		return opt;
+	}
 	let print= false;
 	let setSideElevation= function(x0,y0,z0,dx,dy,slope) {
 		let dd= Math.sqrt(dx*dx+dy*dy);
@@ -6016,6 +6045,7 @@ let lowerTerrain= function(tile)
 				setElevation(x,y,max);
 			else
 				return i;
+			saveConstraint(1,0,max,max,0,x,y);
 //			console.log(" setside "+i+" "+
 //			  x.toFixed(3)+" "+y.toFixed(3)+" "+
 //			  z0.toFixed(3)+" "+e.toFixed(3)+" "+
@@ -6049,9 +6079,11 @@ let lowerTerrain= function(tile)
 			if (e1>z && e2>z) {
 				setElevation(x1,y1,z);
 				setElevation(x2,y2,z);
+				saveConstraint(1,0,z,z,0,x1,y1);
+				saveConstraint(1,0,z,z,0,x2,y2);
 			} else if (e1 > z) {
-				let opt1=
-				  lsOpt2((step-d1)/step,d1/step,z,z,e2);
+				let opt1= saveConstraint((step-d1)/step,
+				  d1/step,z,z,e2,x1,y1,x2,y2);
 				if (print)
 					console.log(" setbottom1 "+
 					  opt1.v.toFixed(3)+" "+
@@ -6060,8 +6092,8 @@ let lowerTerrain= function(tile)
 				setElevation(x1,y1,opt1.x1);
 				setElevation(x2,y2,opt1.x2);
 			} else if (e2 > z) {
-				let opt2=
-				  lsOpt2(d2/step,(step-d2)/step,z,e1,z);
+				let opt2= saveConstraint(d2/step,
+				  (step-d2)/step,z,e1,z,x1,y1,x2,y2);
 				if (print)
 					console.log(" setbottom2 "+
 					  opt2.v.toFixed(3)+" "+
@@ -6076,8 +6108,10 @@ let lowerTerrain= function(tile)
 			let em= getElevation(xm,ym,false);
 			if (em > z)
 				em= z;
-			let opt1= lsOpt2((step-d1)/step,d1/step,z,e1,em);
-			let opt2= lsOpt2(d2/step,(step-d2)/step,z,em,e2);
+			let opt1= saveConstraint((step-d1)/step,d1/step,z,
+			  e1,em,x1,y1,xm,ym);
+			let opt2= saveConstraint(d2/step,(step-d2)/step,z,
+			  em,e2,xm,ym,x2,y2);
 			setElevation(x1,y1,opt1.x1);
 			setElevation(x2,y2,opt2.x2);
 			let zm= opt1.x2<opt2.x1 ? opt1.x2 : opt2.x1;
@@ -6099,8 +6133,10 @@ let lowerTerrain= function(tile)
 			let em2= getElevation(xm2,ym2,false);
 			if (em2 > z)
 				em2= z;
-			let opt1= lsOpt2((step-d1)/step,d1/step,z,e1,em1);
-			let opt2= lsOpt2(d2/step,(step-d2)/step,z,em2,e2);
+			let opt1= saveConstraint((step-d1)/step,d1/step,z,
+			  e1,em1,x1,y1,xm1,ym1);
+			let opt2= saveConstraint(d2/step,(step-d2)/step,z,
+			  em2,e2,xm2,ym2,x2,y2);
 			setElevation(x1,y1,opt1.x1);
 			setElevation(x2,y2,opt2.x2);
 			setElevation(xm1,ym1,opt1.x2);
@@ -6237,6 +6273,48 @@ let lowerTerrain= function(tile)
 		profile= getCutFillProfile(track2.type).cut;
 		adjustTerrain(p0,p2,profile);
 	}
+	let printScore= function() {
+		let s= 0;
+		for (let i=0; i<variables.length; i++) {
+			let v= variables[i];
+			let d= v.u-v.e;
+			s+= d*d;
+		}
+		console.log("score "+s);
+	}
+	console.log("vars "+variables.length+" "+constraints.length);
+	printScore();
+	variables.sort(function(a,b) { return (b.u-b.e) - (a.u-a.e); });
+	for (let i=0; i<variables.length; i++)
+		variables[i].constraints= [];
+	for (let i=0; i<constraints.length; i++) {
+		let c= constraints[i];
+		c.v1.constraints.push(c);
+		c.v2.constraints.push(c);
+	}
+	console.log("v0 "+variables[0].e+" "+variables[0].u);
+	let n= 0;
+	for (let i=0; i<variables.length; i++) {
+		let v= variables[i];
+		let max= v.u;
+		for (let j=0; j<v.constraints.length; j++) {
+			let c= v.constraints[j];
+			let x= c.v1==v ?
+			  (c.b - c.a2*c.v2.e) / c.a1 :
+			  (c.b - c.a1*c.v1.e) / c.a2;
+			if (max > x)
+				max= x;
+		}
+		if (max > v.e+.001) {
+//			console.log("update "+i+" "+v.x+" "+v.y+" "+
+//			  v.e+" "+max+" "+v.u);
+			v.e= max;
+			setElevation(v.x,v.y,max);
+			n++;
+		}
+	}
+	console.log(" "+n+" updates");
+	printScore();
 }
 
 let findCutPolygon= function(tile,i0,j0)

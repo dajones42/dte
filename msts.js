@@ -3287,7 +3287,10 @@ let saveTileCutFill= function()
 			let fbox= clipPolygons(fill,bBox,false);
 			console.log(" fbox "+fbox.polygons.length);
 			//writeCsgObj(ppath+"_fbox.obj",fbox);
-			if (noCut || (cut.length==0 && opCut.length==0))
+			if (opCut.length>0 && (noCut || cut.length==0))
+				model= opcutFillBySquare(i0,j0,fbox,
+				  tx,tz,opCut,patchImages);
+			else if (noCut || cut.length==0)
 				model= fbox;
 			else
 				model= cutFillBySquare(i0,j0,model,cut,fbox,
@@ -3663,7 +3666,7 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 		let prof= cut ? profile.cut : profile.fill;
 		let x= point.position.x;
 		let y= point.position.y;
-		let r= radius+prof.width+1;
+		let r= radius+prof.width;
 		if ((x-r<minX && x+r<minX) ||
 		  (x-r>maxX && x+r>maxX) ||
 		  (y-r<minY && y+r<minY) ||
@@ -3726,7 +3729,7 @@ let makeCutFillModel= function(tile,i0,j0,cut,pid0,faces,overpass)
 		for (let j=0; j<controlPoints.length-1; j++) {
 			let cp0= controlPoints[j];
 			let cp1= controlPoints[j+1];
-			if (cp0.bridge) {
+			if (cp0.bridge && cp0.bridge!="crossing") {
 				for (let k=cp0.trackPoint; k<cp1.trackPoint;
 				  k++) {
 					trackPoints[k].bridge= true;
@@ -4320,6 +4323,43 @@ let cutFillBySquare= function(i0,j0,model,cut,fill,tx,tz,opCut,patchImages,
 		}
 	}
 	console.log("ncut "+ncut);
+	return CSG.fromPolygons(polys);
+}
+
+let opcutFillBySquare= function(i0,j0,fill,tx,tz,opCut,patchImages)
+{
+	let polys= [];
+	let ncut= 0;
+	for (let i=0; i<16; i++) {
+		for (let j=0; j<16; j++) {
+			let bBox= CSG.cube({
+			  center: [8*(j0+j-128)+4,8*(128-i-i0)-4, 10000],
+			  radius: [4.001,4.001,10000]});
+			let fbox= clipPolygons(fill,bBox);
+			if (fbox.polygons.length > 0) {
+				for (let k=0; k<opCut.length; k++) {
+					let cbox= clipPolygons(opCut[k],bBox);
+					if (cbox.polygons.length>0 &&
+					  fbox.intersect(cbox).polygons.length>0) {
+						fbox= fbox.subtract(cbox);
+					}
+				}
+			}
+			if (opCut.length > 0) {
+				for (let k=0; k<fbox.polygons.length; k++) {
+					let poly= fbox.polygons[k];
+					polys.push(poly);
+				}
+			}
+		}
+	}
+	if (opCut.length == 0) {
+		for (let k=0; k<fill.polygons.length; k++) {
+			let poly= fill.polygons[k];
+			if (poly.shared)
+				polys.push(poly);
+		}
+	}
 	return CSG.fromPolygons(polys);
 }
 
@@ -5924,7 +5964,7 @@ let writeCsgShape= function(filename,model,pi,pj,patchImages)
 				  vert.normal.x*vert.pos.y;
 				u= dot/10;
 				v= vert.pos.z/10;
-			} else {
+			} else if (vert.shared) {
 				let p0= vert.shared.point;
 				let perp= vert.shared.perp;
 				let scale= 2*vert.shared.profile.width;
@@ -5933,6 +5973,8 @@ let writeCsgShape= function(filename,model,pi,pj,patchImages)
 				u= (vert.shared.distance - y*perp.x +
 				  x*perp.y) / scale;
 				v= .5 + (x*perp.x + y*perp.y) / scale;
+			} else {
+				console.error("missing vert.shared");
 			}
 			mesh.addVertexUV(i,u,v);
 		}
@@ -6000,6 +6042,8 @@ let lowerTerrain= function(tile)
 	let variables= [];
 	let constraints= [];
 	let findVar= function(x,y,u) {
+		x= Math.round(x);
+		y= Math.round(y);
 		for (let i=0; i<variables.length; i++) {
 			let v= variables[i];
 			if (v.x==x && v.y==y)
@@ -6009,16 +6053,24 @@ let lowerTerrain= function(tile)
 		variables.push(v);
 		return v;
 	}
-	let saveConstraint= function(a1,a2,b,u1,u2,x1,y1,x2,y2) {
-		let opt= lsOpt2(a1,a2,b,u1,u2);
+	let saveConstraint= function(a1,a2,b,u1,u2,x1,y1,x2,y2,src) {
 		let v1= findVar(x1,y1,u1);
+		if (v1.u > u1)
+			v1.u= u1;
+		else
+			u1= v1.u;
 		if (a2 == 0) {
 			if (v1.u > b)
 				v1.u= v1.e= b;
-			return opt;
+			return lsOpt2(1,0,b,b,0);
 		}
 		let v2= findVar(x2,y2,u2);
-		let c= { v1:v1, v2:v2, a1:a1, a2:a2, b:b };
+		if (v2.u > u2)
+			v2.u= u2;
+		else
+			u2= v2.u;
+		let opt= lsOpt2(a1,a2,b,u1,u2);
+		let c= { v1:v1, v2:v2, a1:a1, a2:a2, b:b, src:src };
 		constraints.push(c);
 		if (v1.e > opt.x1)
 			v1.e= opt.x1;
@@ -6032,10 +6084,8 @@ let lowerTerrain= function(tile)
 		for (let i=0; i<256; i++) {
 			let x= x0 + i*dx;
 			let y= y0 + i*dy;
-			if (x<minX || x>maxX || y<minY || y>maxY)
-				return i;
 			let e= getElevation(x,y,false);
-			let max= z0 + i*dd*slope;
+			let max= z0 + i*dd/slope;
 			if (print)
 				console.log(" setside "+i+" "+
 				  x.toFixed(3)+" "+y.toFixed(3)+" "+
@@ -6076,14 +6126,18 @@ let lowerTerrain= function(tile)
 				console.log(" setbottom1 "+d.toFixed(3)+" "+
 				  e1.toFixed(3)+" "+e2.toFixed(3)+" "+
 				  z.toFixed(3));
+			let opt1= saveConstraint((step-d1)/step,
+			  d1/step,z,e1,e2,x1,y1,x2,y2,"b1a");
+			let opt2= saveConstraint(d2/step,
+			  (step-d2)/step,z,e1,e2,x1,y1,x2,y2,"b1b");
 			if (e1>z && e2>z) {
 				setElevation(x1,y1,z);
 				setElevation(x2,y2,z);
-				saveConstraint(1,0,z,z,0,x1,y1);
-				saveConstraint(1,0,z,z,0,x2,y2);
+//				saveConstraint(1,0,z,z,0,x1,y1);
+//				saveConstraint(1,0,z,z,0,x2,y2);
 			} else if (e1 > z) {
-				let opt1= saveConstraint((step-d1)/step,
-				  d1/step,z,z,e2,x1,y1,x2,y2);
+//				let opt1= saveConstraint((step-d1)/step,
+//				  d1/step,z,z,e2,x1,y1,x2,y2);
 				if (print)
 					console.log(" setbottom1 "+
 					  opt1.v.toFixed(3)+" "+
@@ -6092,8 +6146,8 @@ let lowerTerrain= function(tile)
 				setElevation(x1,y1,opt1.x1);
 				setElevation(x2,y2,opt1.x2);
 			} else if (e2 > z) {
-				let opt2= saveConstraint(d2/step,
-				  (step-d2)/step,z,e1,z,x1,y1,x2,y2);
+//				let opt2= saveConstraint(d2/step,
+//				  (step-d2)/step,z,e1,z,x1,y1,x2,y2);
 				if (print)
 					console.log(" setbottom2 "+
 					  opt2.v.toFixed(3)+" "+
@@ -6109,9 +6163,9 @@ let lowerTerrain= function(tile)
 			if (em > z)
 				em= z;
 			let opt1= saveConstraint((step-d1)/step,d1/step,z,
-			  e1,em,x1,y1,xm,ym);
+			  e1,em,x1,y1,xm,ym,"b2a");
 			let opt2= saveConstraint(d2/step,(step-d2)/step,z,
-			  em,e2,xm,ym,x2,y2);
+			  em,e2,xm,ym,x2,y2,"b2b");
 			setElevation(x1,y1,opt1.x1);
 			setElevation(x2,y2,opt2.x2);
 			let zm= opt1.x2<opt2.x1 ? opt1.x2 : opt2.x1;
@@ -6123,20 +6177,21 @@ let lowerTerrain= function(tile)
 				  z.toFixed(3)+" "+opt1.x1.toFixed(3)+" "+
 				  zm.toFixed(3)+" "+opt2.x2.toFixed(3));
 		} else {
-			let xm1= (2*x1+x2)/3;
-			let ym1= (2*y1+y2)/3;
+			let n= Math.ceil(d/step);
+			let xm1= ((n-1)*x1+x2)/n;
+			let ym1= ((n-1)*y1+y2)/n;
 			let em1= getElevation(xm1,ym1,false);
 			if (em1 > z)
 				em1= z;
-			let xm2= (x1+2*x2)/3;
-			let ym2= (y1+2*y2)/3;
+			let xm2= (x1+(n-1)*x2)/n;
+			let ym2= (y1+(n-1)*y2)/n;
 			let em2= getElevation(xm2,ym2,false);
 			if (em2 > z)
 				em2= z;
 			let opt1= saveConstraint((step-d1)/step,d1/step,z,
-			  e1,em1,x1,y1,xm1,ym1);
+			  e1,em1,x1,y1,xm1,ym1,"b3a");
 			let opt2= saveConstraint(d2/step,(step-d2)/step,z,
-			  em2,e2,xm2,ym2,x2,y2);
+			  em2,e2,xm2,ym2,x2,y2,"b3b");
 			setElevation(x1,y1,opt1.x1);
 			setElevation(x2,y2,opt2.x2);
 			setElevation(xm1,ym1,opt1.x2);
@@ -6153,13 +6208,19 @@ let lowerTerrain= function(tile)
 				  d2.toFixed(3)+" "+em2.toFixed(3)+" "+
 				  z.toFixed(3)+" "+opt2.x1.toFixed(3)+" "+
 				  opt2.x2.toFixed(3));
+			for (let i=2; i<n-1; i++) {
+				let xm= (i*x1+(n-i)*x2)/n;
+				let ym= (i*y1+(n-i)*y2)/n;
+				setElevation(xm,ym,z);
+				saveConstraint(1,0,z,z,0,xm,ym,"b2m");
+			}
 		}
 	}
 	let setSegSegElevation= function(p0,p1,p2,p3,dx,dy,profile,dir) {
 		let pi= segSegInt(p0,p1,p2,p3);
 		if (pi.d==0 || pi.s<0 || pi.s>1)
 			return;
-		//print= -2830<pi.x && pi.x<-2810 && -1700<pi.y && pi.y<-1680;
+//		print= 9862<pi.x && pi.x<9882 && -15338<pi.y && pi.y<-15318;
 		if (print)
 			console.log("pi "+pi.x.toFixed(3)+" "+
 			  pi.y.toFixed(3)+" "+dx+" "+dy+" "+
@@ -6172,16 +6233,22 @@ let lowerTerrain= function(tile)
 			console.log(" "+scale.toFixed(3)+" "+w.toFixed(3)+" "+
 			  slope.toFixed(3)+" "+dir.dot(perp).toFixed(3));
 		let z= p0.z + pi.s*(p1.z-p0.z) - profile.depth;
+		if (profile.depth < .3)
+			z-= .3-profile.depth;
 		let x1= pi.x - dx*w;
 		let x2= pi.x + dx*w;
 		let y1= pi.y - dy*w;
 		let y2= pi.y + dy*w;
 		let xa= 8*Math.floor(x1/8);//dx always >=0
 		let xb= 8*Math.ceil(x2/8);
+		if (dx == 0)
+			xa= xb= x1;
 		let dxa= x1 - xa;
 		let dxb= xb - x2;
 		let ya= 8*(dy<0?Math.ceil(y1/8):Math.floor(y1/8));
 		let yb= 8*(dy<0?Math.floor(y2/8):Math.ceil(y2/8));
+		if (dy == 0)
+			ya= yb= y1;;
 		let dya= y1 - ya;
 		let dyb= yb - y2;
 		if (print)
@@ -6192,8 +6259,8 @@ let lowerTerrain= function(tile)
 			  y1.toFixed(3)+" "+y2.toFixed(3)+" "+yb.toFixed(3));
 		let da= Math.sqrt(dxa*dxa+dya*dya);
 		let db= Math.sqrt(dxb*dxb+dyb*dyb);
-		let za= z + slope*da;
-		let zb= z + slope*db;
+		let za= z + da/slope;
+		let zb= z + db/slope;
 		if (print)
 			console.log(" z "+z.toFixed(3)+" "+
 			  za.toFixed(3)+" "+zb.toFixed(3));
@@ -6202,10 +6269,10 @@ let lowerTerrain= function(tile)
 		setBottomElevation(xa,ya,xb,yb,z,dxa,dxb,dya,dyb);
 	}
 	let adjustTerrain= function(p0,p1,profile) {
-		if ((p0.x<minX && p1.x<minX) ||
-		  (p0.x>maxX && p1.x>maxX) ||
-		  (p0.y<minY && p1.y<minY) ||
-		  (p0.y>maxY && p1.y>maxY))
+		if ((p0.x<minX-10 && p1.x<minX-10) ||
+		  (p0.x>maxX+10 && p1.x>maxX+10) ||
+		  (p0.y<minY-10 && p1.y<minY-10) ||
+		  (p0.y>maxY+10 && p1.y>maxY+10))
 			return;
 		let dir= p1.minus(p0);
 		let stepSize= 8;
@@ -6219,33 +6286,68 @@ let lowerTerrain= function(tile)
 			if (Math.abs(dir.x) >= Math.abs(dir.y)) {
 				for (let x=minX; x<maxX; x+=8) {
 					setSegSegElevation(p2,p3,
-					  {x:x,y:minY},{x:x,y:maxY},
+					  {x:x,y:minY-10},{x:x,y:maxY+10},
 					  0,1,profile,dir);
 				}
 			}
 			if ((dir.x>0 && dir.y>0) || (dir.x<0 && dir.y<0)) {
 				for (let x=minX-2048; x<maxX; x+=8) {
 					setSegSegElevation(p2,p3,
-					  {x:x,y:maxY},{x:x+2048,y:minY},
+					  {x:x-10,y:maxY+10},
+					  {x:x+2048+10,y:minY-10},
 					  1,-1,profile,dir);
 				}
 			}
 			if (Math.abs(dir.y) >= Math.abs(dir.x)) {
 				for (let y=minY; y<maxY; y+=8) {
 					setSegSegElevation(p2,p3,
-					  {x:minX,y:y},{x:maxX,y:y},
+					  {x:minX-10,y:y},{x:maxX+10,y:y},
 					  1,0,profile,dir);
 				}
 			}
 			if ((dir.x<0 && dir.y>0) || (dir.x>0 && dir.y<0)) {
 				for (let y=minY-2048; y<maxY; y+=8) {
 					setSegSegElevation(p2,p3,
-					  {x:minX,y:y},{x:maxX,y:y+2048},
+					  {x:minX-10,y:y-10},
+					  {x:maxX+10,y:y+2048+10},
 					  1,1,profile,dir);
 				}
 			}
 			p2= p3;
 		}
+	}
+	let adjustModelTerrain= function(point) {
+		if (!point.direction || !point.model || !point.model.size)
+			return;
+		let x= point.position.x;
+		let y= point.position.y;
+		let z= point.position.z;
+		let dx= point.direction.x;
+		let dy= point.direction.y;
+		let px= -dy;
+		let py= dx;
+		let w= point.model.size.w/2;
+		let h= point.model.size.h/2;
+		let p0= new CSG.Vector(x-w*dx,y-w*dy,z);
+		let p1= new CSG.Vector(x+w*dx,y+w*dy,z);
+		let p2= new CSG.Vector(x-h*px,y-h*py,z);
+		let p3= new CSG.Vector(x+h*px,y+h*py,z);
+		let profile= { width:h, slope:3, depth:.1 };
+		adjustTerrain(p0,p1,profile);
+		profile.width= w;
+		adjustTerrain(p2,p3,profile);
+	}
+	let adjustTurntableTerrain= function(point,radius) {
+		let x= point.position.x;
+		let y= point.position.y;
+		let z= point.position.z;
+		let p0= new CSG.Vector(x-1.1*radius,y,z);
+		let p1= new CSG.Vector(x+1.1*radius,y,z);
+		let p2= new CSG.Vector(x,y-1.1*radius,z);
+		let p3= new CSG.Vector(x,y+1.1*radius,z);
+		let profile= { width:1.1*radius, slope:.1, depth:2.5 };
+		adjustTerrain(p0,p1,profile);
+		adjustTerrain(p2,p3,profile);
 	}
 	for (let i=0; i<tracks.length; i++) {
 		let track= tracks[i];
@@ -6259,6 +6361,16 @@ let lowerTerrain= function(tile)
 			let p0= trackPoints[j-1];
 			let p1= trackPoints[j];
 			adjustTerrain(p0,p1,profile);
+		}
+		let controlPoints= track.controlPoints;
+		if (controlPoints.length == 1)
+			adjustModelTerrain(controlPoints[0]);
+		for (let j=0; j<controlPoints.length-1; j++) {
+			let cp0= controlPoints[j];
+			let cp1= controlPoints[j+1];
+			if (cp0.bridge && cp0.bridge=="turntable")
+				adjustTurntableTerrain(cp0,
+				  cp1.distance-cp0.distance);
 		}
 	}
 	for (let i=0; i<switches.length; i++) {
@@ -6292,11 +6404,13 @@ let lowerTerrain= function(tile)
 		c.v1.constraints.push(c);
 		c.v2.constraints.push(c);
 	}
-	console.log("v0 "+variables[0].e+" "+variables[0].u);
-	let n= 0;
 	for (let i=0; i<variables.length; i++) {
 		let v= variables[i];
 		let max= v.u;
+		let print= false;
+//		print= 9862<v.x && v.x<9882 && -15338<v.y && v.y<-15318;
+		if (print)
+			console.log("var "+v.x+" "+v.y+" "+v.u+" "+v.e);
 		for (let j=0; j<v.constraints.length; j++) {
 			let c= v.constraints[j];
 			let x= c.v1==v ?
@@ -6304,16 +6418,20 @@ let lowerTerrain= function(tile)
 			  (c.b - c.a1*c.v1.e) / c.a2;
 			if (max > x)
 				max= x;
+			if (print && c.v1==v)
+				console.log(" "+c.v2.x+" "+c.v2.y+" "+
+				  c.v2.e+" "+c.a2+" "+c.b+" "+c.a1+" "+max+" "+
+				  c.src);
+			else if (print)
+				console.log(" "+c.v1.x+" "+c.v1.y+" "+
+				  c.v1.e+" "+c.a1+" "+c.b+" "+c.a2+" "+max+" "+
+				  c.src);
 		}
-		if (max > v.e+.001) {
-//			console.log("update "+i+" "+v.x+" "+v.y+" "+
-//			  v.e+" "+max+" "+v.u);
-			v.e= max;
-			setElevation(v.x,v.y,max);
-			n++;
-		}
+		if (print)
+			console.log(" e "+v.e+" "+max+" "+(max-v.e));
+		v.e= max;
+		setElevation(v.x,v.y,max);
 	}
-	console.log(" "+n+" updates");
 	printScore();
 }
 

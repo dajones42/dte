@@ -931,7 +931,7 @@ let calcDirection= function(track)
 			continue;
 		}
 		let dir= new CSG.Vector(0,0,0);
-		if (i > 0 && !cp.straight)
+		if (i>0 && (!cp.straight || i==controlPoints.length-1))
 			dir= dir.plus(cp.position.minus(
 			  controlPoints[i-1].position).unit());
 		if (i < controlPoints.length-1 &&

@@ -3459,7 +3459,7 @@ let getCutFillProfile= function(trackType)
 	let profiles = {
 	  branch: {
 		cut: { depth: .3, width: 3.2, slope: 1 },
-		fill: { depth: 0, width: 2.75, slope: 1.5, surface: 2003 },
+		fill: { depth: 0, width: 2.75, slope: 1.5, surface: 2101 },
 	  },
 	  yard: {
 		cut: { depth: .01, width: 5, slope: 1 },
@@ -4664,11 +4664,11 @@ let writePaths= function()
 //			  cp.model && cp.model.filename) {
 			if (cp.name && !cp.name.startsWith("signal")) {
 				if (j < controlPoints.length-1) {
-					writePath(n,cp,controlPoints[j+1]);
+					writePath(n,cp,controlPoints[controlPoints.length-1]);
 					n++;
 				}
 				if (j > 0) {
-					writePath(n,cp,controlPoints[j-1]);
+					writePath(n,cp,controlPoints[0]);
 					n++;
 				}
 			}
@@ -4679,6 +4679,23 @@ let writePaths= function()
 
 let writePath= function(n,cp0,cp1)
 {
+	let sw= cp1.sw;
+	if (sw) {
+		let farPoint= function(cp) {
+			let track= findTrack(cp);
+			let controlPoints= track.controlPoints;
+			if (cp == controlPoints[0])
+				return controlPoints[controlPoints.length-1];
+			else
+				return controlPoints[0];
+		}
+		if (sw.points[0] != cp1)
+			cp1= farPoint(sw.points[0]);
+		else if (Math.abs(sw.angles[0]) < Math.abs(sw.angles[1]))
+			cp1= farPoint(sw.points[1]);
+		else
+			cp1= farPoint(sw.points[2]);
+	}
 	let path= routeDir+fspath.sep+"PATHS"+fspath.sep+"path"+n.toFixed(0)+
 	  ".pat";
 	const fd= fs.openSync(path,"w");
@@ -4689,22 +4706,22 @@ let writePath= function(n,cp0,cp1)
 	fs.writeSync(fd,"\r\n",null,"utf16le");
 	fs.writeSync(fd,"Serial ( 1 )\r\n",null,"utf16le");
 	fs.writeSync(fd,"TrackPDPs (\r\n",null,"utf16le");
-	let tx= centerTX + Math.round(cp0.position.x/2048);
-	let tz= centerTZ + Math.round(cp0.position.y/2048);
-	let x= cp0.position.x - 2048*(tx-centerTX);
-	let y= cp0.position.z;
-	let z= cp0.position.y - 2048*(tz-centerTZ);
-	fs.writeSync(fd,"\tTrackPDP ( "+tx+" "+tz+" "+x.toFixed(3)+" "+
-	  y.toFixed(3)+" "+z.toFixed(3)+" 1 1 )\r\n",
-	  null,"utf16le");
-	tx= centerTX + Math.round(cp1.position.x/2048);
-	tz= centerTZ + Math.round(cp1.position.y/2048);
-	x= cp1.position.x - 2048*(tx-centerTX);
-	y= cp1.position.z;
-	z= cp1.position.y - 2048*(tz-centerTZ);
-	fs.writeSync(fd,"\tTrackPDP ( "+tx+" "+tz+" "+x.toFixed(3)+" "+
-	  y.toFixed(3)+" "+z.toFixed(3)+" 1 1 )\r\n",
-	  null,"utf16le");
+	let writePDP= function(cp,sw) {
+		let tx= centerTX + Math.round(cp.position.x/2048);
+		let tz= centerTZ + Math.round(cp.position.y/2048);
+		let x= cp.position.x - 2048*(tx-centerTX);
+		let y= cp.position.z;
+		let z= cp.position.y - 2048*(tz-centerTZ);
+		let type1= sw ? 2 : 1;
+		let type2= sw ? 0 : 1;
+		fs.writeSync(fd,"\tTrackPDP ( "+tx+" "+tz+" "+x.toFixed(3)+" "+
+		  y.toFixed(3)+" "+z.toFixed(3)+" "+type1.toFixed(0)+" "+type2.toFixed(0)+" )\r\n",
+		  null,"utf16le");
+	}
+	writePDP(cp0,false);
+	writePDP(cp1,false);
+	if (sw)
+		writePDP(sw.points[0],true);
 	fs.writeSync(fd,")\r\n",null,"utf16le");
 	fs.writeSync(fd,"TrackPath (\r\n",null,"utf16le");
 	fs.writeSync(fd,"\tTrPathName ( "+n+" )\r\n",null,"utf16le");
@@ -4712,12 +4729,18 @@ let writePath= function(n,cp0,cp1)
 //	fs.writeSync(fd,"\tTrPathStart ( "+cp0.model.filename+
 	fs.writeSync(fd,"\tTrPathStart ( \""+cp0.name+
 	  "\" )\r\n",null,"utf16le");
-	fs.writeSync(fd,"\tTrPathEnd ( "+
-	  (cp0.position.x>cp1.position.x?"west":"east")+
-	  " )\r\n",null,"utf16le");
-	fs.writeSync(fd,"\tTrPathNodes ( 2\r\n",null,"utf16le");
+	let dx= cp1.position.x - cp0.position.x;
+	let dy= cp1.position.y - cp0.position.y;
+	let dir= dx<0 && Math.abs(dx)>Math.abs(dy) ? "west" :
+	   dx>0 && Math.abs(dx)>Math.abs(dy) ? "east" :
+	   dy<0 && Math.abs(dx)<Math.abs(dy) ? "south" : "north";
+	fs.writeSync(fd,"\tTrPathEnd ( "+dir+" )\r\n",null,"utf16le");
+	fs.writeSync(fd,"\tTrPathNodes ( "+(sw?"3":"2")+" \r\n",null,"utf16le");
 	fs.writeSync(fd,"\t\tTrPathNode ( 00000000 1 4294967295 0 )\r\n",
 	  null,"utf16le");
+	if (sw)
+		fs.writeSync(fd,"\t\tTrPathNode ( 00000000 2 4294967295 2 )\r\n",
+		  null,"utf16le");
 	fs.writeSync(fd,
 	  "\t\tTrPathNode ( 00000000 4294967295 4294967295 1 )\r\n",
 	  null,"utf16le");
@@ -6385,17 +6408,28 @@ let lowerTerrain= function(tile)
 		profile= getCutFillProfile(track2.type).cut;
 		adjustTerrain(p0,p2,profile);
 	}
+	const oRatio= .1;
 	let printScore= function() {
 		let s= 0;
+		let s2= 0;
+		let ns= 0;
 		for (let i=0; i<variables.length; i++) {
 			let v= variables[i];
+			if (v.smooth)
+				ns++;
 			let d= v.u-v.e;
 			s+= d*d;
+			if (v.nbsum) {
+				d= v.nbsum-v.e;
+				s2+= d*d;
+			}
 		}
-		console.log("score "+s);
+//		console.log("vars "+variables.length+" "+ns+" "+
+//		  constraints.length);
+//		console.log("score "+s.toFixed(0)+" "+s2.toFixed(0)+" "+
+//		  (oRatio*s+(1-oRatio)*s2).toFixed(0));
 	}
-	console.log("vars "+variables.length+" "+constraints.length);
-	printScore();
+//	printScore();
 	variables.sort(function(a,b) { return (b.u-b.e) - (a.u-a.e); });
 	for (let i=0; i<variables.length; i++)
 		variables[i].constraints= [];
@@ -6432,7 +6466,84 @@ let lowerTerrain= function(tile)
 		v.e= max;
 		setElevation(v.x,v.y,max);
 	}
-	printScore();
+//	printScore();
+	let neighbors= [ {x:-8,y:-8}, {x:0,y:-8}, {x:8,y:-8},
+	  {x:-8,y:0}, {x:8,y:0}, {x:-8,y:8}, {x:0,y:8}, {x:8,y:8} ];
+	for (let i=0; i<variables.length; i++) {
+		let v= variables[i];
+		if (v.constraints && v.constraints.length>0) {
+			let minb= 1e10;
+			for (let i=0; i<v.constraints.length; i++) {
+				let c= v.constraints[i];
+				if (minb > c.b)
+					minb= c.b;
+			}
+			if (v.u < minb)
+				continue;
+			v.smooth= true;
+			for (let i=0; i<neighbors.length; i++) {
+				let nb= neighbors[i];
+				let nbv= findVar(v.x+nb.x,v.y+nb.y,0);
+				nbv.smooth= true;
+				if (nbv.u == 0)
+					nbv.u= nbv.e=
+					  getElevation(nbv.x,nbv.y,false);
+			}
+		}
+	}
+//	printScore();
+	for (let pass=0; pass<10; pass++) {
+//		console.log("pass "+pass);
+		let obj= 0;
+		let nchg= 0;
+		for (let i=0; i<variables.length; i++) {
+			let v= variables[i];
+			if (!v.smooth)
+				continue;
+			let print= false;
+//			let print= v.x>21325 && v.x<21385 &&
+//			  v.y>-17681 && v.y<-17621;
+			let sum= 0;
+			let n= 0;
+			for (let j=0; j<neighbors.length; j++) {
+				let nb= neighbors[j];
+				let e= getElevation(v.x+nb.x,v.y+nb.y,false);
+				if (e > 0) {
+					sum+= e;
+					n++;
+				}
+			}
+			if (n > 0)
+				sum/= n;
+			v.nbsum= sum;
+			let de= sum - v.e;
+			obj+= de*de;
+			let e= oRatio*v.u + (1-oRatio)*(v.e+.5*de);
+			if (e > v.u)
+				e= v.u;
+			for (let j=0; v.constraints &&
+			  j<v.constraints.length; j++) {
+				let c= v.constraints[j];
+				let x= c.v1==v ?
+				  (c.b - c.a2*c.v2.e) / c.a1 :
+				  (c.b - c.a1*c.v1.e) / c.a2;
+				if (e > x)
+					e= x;
+			}
+			if (e != v.e) {
+				v.e= e;
+				setElevation(v.x,v.y,v.e);
+				nchg++;
+				if (print)
+					console.log("smooth "+v.x+" "+v.y+" "+
+					  v.u+" "+v.e+" "+(v.e-sum).toFixed(3));
+			}
+		}
+//		console.log("pass "+pass+" "+nchg+" "+obj);
+//		printScore();
+		if (nchg == 0)
+			break;
+	}
 }
 
 let findCutPolygon= function(tile,i0,j0)

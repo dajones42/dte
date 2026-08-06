@@ -28,7 +28,7 @@ let writeVolumes= function(fd,input)
 {
 	fs.writeSync(fd," volumes ( 1\r\n",null,"utf16le");
 	fs.writeSync(fd,"  vol_sphere (\r\n",null,"utf16le");
-	fs.writeSync(fd,"   vector ( 0 0 0 ) 100\r\n",null,"utf16le");
+	fs.writeSync(fd,"   vector ( 0 0 0 ) 2000\r\n",null,"utf16le");
 	fs.writeSync(fd,"  )\r\n",null,"utf16le");
 	fs.writeSync(fd," )\r\n",null,"utf16le");
 }

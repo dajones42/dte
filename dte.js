@@ -1645,8 +1645,8 @@ let printTrack= function(curves,rpCurves)
 	s+= "<br>Flat Track "+
 	  "<table><tr><th>N</th><th>Straight</th><th>Angle</th>"+
 	  "<th>Radius</th><th>Degrees</th><th>Straight</th>"+
-//	  "<th>Speed</th><th>Spiral Angle</th><th>Spiral Length</th>"+
-//	  "<th>Radius</th><th>Degrees</th>"+
+	  "<th>Speed</th><th>Spiral Angle</th><th>Spiral Length</th>"+
+	  "<th>Radius</th><th>Degrees</th>"+
 	  "</tr>";
 	for (let i=0; i<curves.length; i++) {
 		let c= curves[i];
@@ -1667,7 +1667,7 @@ let printTrack= function(curves,rpCurves)
 			s+= c.len2.toFixed(3);
 		if (c.bad)
 			s+= "</td><td>bad "+c.bad;
-		if (false && c.radius) {
+		if (c.radius) {
 			let sp= calcSpiral(c);
 			s+= "</td><td>";
 			s+= sp.speed.toFixed(1);
@@ -3099,7 +3099,7 @@ let calcSpiral= function(curve)
 {
 	if (curve.radius == 0)
 		return { radius: 0, lc: 0 };
-	let speedLimit= 60;// miles per hour, should come from .trk file
+	let speedLimit= 50;// miles per hour, should come from .trk file
 	let radius= curve.radius;
 	let angle= Math.abs(curve.angle);
 	let t= radius*Math.tan(angle/2);
@@ -3123,7 +3123,7 @@ let calcSpiral= function(curve)
 //			  speed.toFixed(3)+" "+
 //			  superElevation.toFixed(3)+
 //			  " "+lc.toFixed(3)+" "+sc.toFixed(5));
-			if (i==4 && speed>best.speed) {
+			if (i==4 && speed>best.speed && best.speed<speedLimit) {
 				best.speed= speed;
 				best.radius= radius;
 				best.xc= xc;
